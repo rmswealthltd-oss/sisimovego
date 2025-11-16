@@ -1,7 +1,7 @@
 // apps/web/src/utils/trip.ts
 
 import { TripStatus, TripStatusLabels, TripStatusColors } from "@/constants/tripStatus";
-import { Money } from "@/lib/money";
+import { money } from "@/lib/money";
 import { DateFmt } from "@/lib/date";
 
 // Format trip: origin → destination
@@ -11,7 +11,7 @@ export function tripRouteLabel(origin: string, destination: string) {
 
 // Format fare (KES)
 export function tripFare(cents: number) {
-  return Money.format(cents);
+  return money.format(cents);
 }
 
 // Human-friendly date/time

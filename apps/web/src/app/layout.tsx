@@ -1,5 +1,6 @@
 // apps/web/src/app/layout.tsx
 import "./globals.css";
+import type { Metadata } from "next";
 import { ReactNode } from "react";
 
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -8,13 +9,44 @@ import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 
-export const metadata = {
-  title: "SisiMove — Africa’s Best Ridesharing App",
+export const metadata: Metadata = {
+  metadataBase: new URL("https://sisimove.com"),
+
+  title: {
+    default: "SisiMove — Africa’s Best Ridesharing App",
+    template: "%s — SisiMove",
+  },
+
   description: "Fast, safe and affordable rides across Africa.",
+
   manifest: "/manifest.webmanifest",
+
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/apple-icon.png",
+  },
+
+  openGraph: {
+    title: "SisiMove — Africa’s Best Ridesharing App",
+    description: "Fast, safe and affordable rides across Africa.",
+    url: "https://sisimove.com",
+    siteName: "SisiMove",
+    type: "website",
+    images: [
+      {
+        url: "/opengraph-image", // auto-generated OG card
+        width: 1200,
+        height: 630,
+        alt: "SisiMove OpenGraph Image",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "SisiMove — Africa’s Best Ridesharing App",
+    description: "Fast, safe and affordable rides across Africa.",
+    images: ["/opengraph-image"],
   },
 };
 
@@ -35,7 +67,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* PWA theme */}
         <meta name="theme-color" content="#2563eb" />
 
-        {/* iOS PWA support */}
+        {/* iOS PWA */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
@@ -48,17 +80,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ThemeProvider>
           <AuthProvider>
             <div className="min-h-screen flex flex-col">
-              {/* Header */}
               <Navbar />
-
-              {/* Page content */}
               <main className="flex-1 pb-16">{children}</main>
-
-              {/* Bottom mobile nav */}
               <BottomNav />
             </div>
 
-            {/* Register Service Worker */}
+            {/* Service Worker */}
             <script
               dangerouslySetInnerHTML={{
                 __html: `
@@ -66,9 +93,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     window.addEventListener("load", () => {
                       navigator.serviceWorker
                         .register("/sw.js")
-                        .catch(err =>
-                          console.log("Service worker registration failed:", err)
-                        );
+                        .catch(err => console.log("SW registration failed:", err));
                     });
                   }
                 `,

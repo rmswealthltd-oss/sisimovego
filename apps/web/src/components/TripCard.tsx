@@ -1,85 +1,41 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import clsx from "clsx";
-import { Money } from "@/lib/money";
+import { money } from "@/lib/money";
+import { format } from "date-fns";
+import { MapPinIcon, ClockIcon, UserIcon } from "@heroicons/react/24/solid";
+import { trip } from "@/utils/trip";
 
-export default function TripCard({ trip }: { trip: any }) {
-  const dep = new Date(trip?.departureAt || trip?.departure_at);
-
-  const seats =
-    trip?.seatsAvailable ??
-    trip?.seats_available ??
-    0;
-
-  const fare =
-    trip?.fareCents ??
-    trip?.fare_cents ??
-    trip?.price_cents ??
-    0;
-
-  const origin =
-    trip?.origin?.address ??
-    trip?.origin ??
-    "Origin";
-
-  const destination =
-    trip?.destination?.address ??
-    trip?.destination ??
-    "Destination";
+export default function TripCard({ trip }: { trip: Trip }) {
+  const departure = format(new Date(trip.departureTime), "HH:mm");
+  const arrival = format(new Date(trip.arrivalTime), "HH:mm");
 
   return (
     <Link
       href={`/trip/${trip.id}`}
-      className="block bg-white rounded-xl shadow hover:shadow-md transition-shadow p-4"
+      className="block bg-white dark:bg-gray-900 rounded-xl shadow p-4 border dark:border-gray-700 hover:shadow-lg transition"
     >
-      <div className="flex justify-between gap-4">
-        {/* LEFT */}
-        <div className="flex-1 min-w-0">
-          <div className="text-sm text-gray-500">
-            {trip?.operatorName ?? "SisiMove"}
-          </div>
+      {/* ROUTE */}
+      <div className="text-xl font-semibold mb-1">
+        {trip.fromCity} → {trip.toCity}
+      </div>
 
-          <div className="text-lg font-semibold truncate">
-            {origin} → {destination}
-          </div>
+      {/* DEPARTURE ROW */}
+      <div className="flex items-center text-gray-600 dark:text-gray-300 gap-2">
+        <ClockIcon className="w-4 h-4" />
+        <span>{departure} → {arrival}</span>
+      </div>
 
-          <div className="text-sm text-gray-500 truncate">
-            {dep.toLocaleString()}
-          </div>
+      {/* DRIVER */}
+      <div className="flex items-center text-gray-600 dark:text-gray-300 gap-2 mt-1">
+        <UserIcon className="w-4 h-4" />
+        <span>{trip.driverName}</span>
+      </div>
 
-          {trip?.shortDescription && (
-            <div className="mt-2 text-sm text-gray-600 line-clamp-2">
-              {trip.shortDescription}
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT */}
-        <div className="flex flex-col items-end justify-between">
-          <div className="text-right">
-            <div className="text-xl font-bold">
-              {Money.format(fare)}
-            </div>
-            <div className="text-sm text-gray-500">per seat</div>
-          </div>
-
-          <div className="text-right mt-2">
-            <div className="text-xs text-gray-500">Seats</div>
-            <div
-              className={clsx(
-                "font-semibold",
-                seats > 3
-                  ? "text-green-600"
-                  : seats > 0
-                  ? "text-yellow-600"
-                  : "text-red-600"
-              )}
-            >
-              {seats}
-            </div>
-          </div>
-        </div>
+      {/* PRICE */}
+      <div className="mt-4 text-lg font-bold text-blue-600 dark:text-blue-400">
+        {money(trip.price)}  {/* FIXED */}
       </div>
     </Link>
   );
