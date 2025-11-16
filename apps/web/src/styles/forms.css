@@ -1,0 +1,25 @@
+/* apps/web/src/styles/forms.css */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+textarea,
+select {
+  @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary;
+}
+
+label {
+  @apply block text-sm font-medium mb-1;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  @apply bg-gray-100 cursor-not-allowed;
+}
+
+.form-error {
+  @apply text-red-600 text-xs mt-1;
+}

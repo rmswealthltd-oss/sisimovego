@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/apps/web/src/components/HeroSearch.tsx/proxy.js"],"sourcesContent":["import { registerClientReference } from \"react-server-dom-turbopack/server.edge\";\nexport default registerClientReference(\n    function() { throw new Error(\"Attempted to call the default export of [project]/apps/web/src/components/HeroSearch.tsx from the server, but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.\"); },\n    \"[project]/apps/web/src/components/HeroSearch.tsx\",\n    \"default\",\n);\n"],"names":[],"mappings":";;;;;;uCACe,4bACX;IAAa,MAAM,IAAI,MAAM;AAAsR,GACnT,oDACA"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 24, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 28, "column": 0}, "map": {"version":3,"sources":["../../../../../src/server/future/route-modules/app-page/module.compiled.js","/turbopack/[project]/node_modules/.pnpm/next@14.1.0_@babel+core@7.28.5_react-dom@18.3.0_react@18.3.0__react@18.3.0/node_modules/next/dist/server/future/route-modules/app-page/module.compiled.js"],"names":["module","exports","require"],"mappings":";AAAA;;OAEO;IACL;;WAQO;QACL,wCAA4C;YAC1CA,OAAOC,OAAO,GAAGC;QACnB;;;IAKF;AACF"}},
+    {"offset": {"line": 42, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 46, "column": 0}, "map": {"version":3,"sources":["../../../../../../../src/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge.ts","/turbopack/[project]/node_modules/.pnpm/next@14.1.0_@babel+core@7.28.5_react-dom@18.3.0_react@18.3.0__react@18.3.0/node_modules/next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge.js"],"names":["module","exports","require","vendored","ReactServerDOMTurbopackServerEdge"],"mappings":";AAAAA,OAAOC,OAAO,GAAGC,uOAAiCC,QAAQ,CACxD,YACD,CAACC,iCAAiC"}},
+    {"offset": {"line": 48, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

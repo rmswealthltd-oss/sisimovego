@@ -1,3 +1,7 @@
+// ======================================================
+// Prisma Schema — SisiMove Backend
+// ======================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,121 +11,269 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ================================================
+// BASE MODELS
+// ================================================
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String?  @unique
+  phone        String?  @unique
+  passwordHash String
+  role         UserRole @default(PASSENGER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  driver        Driver?
+  bookings      Booking[]
+  payments      Payment[]
+  notifications Notification[]
+  refunds       Refund[]
+  fraudEvents   FraudEvent[]
+}
+
 enum UserRole {
   PASSENGER
   DRIVER
   ADMIN
 }
 
+// ================================================
+// DRIVER & VEHICLE
+// ================================================
+
+model Driver {
+  id       String  @id @default(uuid())
+  userId   String  @unique
+  user     User    @relation(fields: [userId], references: [id])
+  verified Boolean @default(false)
+  rating   Float?  @default(5.0)
+
+  vehicle Vehicle?
+  trips   Trip[]
+  payouts Payout[]
+}
+
+model Vehicle {
+  id       String @id @default(uuid())
+  driverId String @unique
+  driver   Driver @relation(fields: [driverId], references: [id])
+
+  make  String
+  model String
+  plate String  @unique
+  color String?
+}
+
+// ================================================
+// TRIPS
+// ================================================
+
+model Trip {
+  id       String @id @default(uuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id])
+
+  origin      String
+  destination String
+  originLat   Float
+  originLng   Float
+  destLat     Float
+  destLng     Float
+
+  priceCents     Int
+  availableSeats Int
+  status         TripStatus @default(PENDING)
+  departureAt    DateTime
+  createdAt      DateTime   @default(now())
+
+  bookings Booking[]
+}
+
+enum TripStatus {
+  PENDING
+  DRIVER_ASSIGNED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+// ================================================
+// BOOKINGS & PAYMENTS
+// ================================================
+
+model Booking {
+  id         String        @id @default(uuid())
+  tripId     String
+  userId     String
+  seats      Int
+  totalCents Int
+  status     BookingStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+
+  trip    Trip     @relation(fields: [tripId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  payment Payment?
+  refund  Refund?
+}
+
 enum BookingStatus {
   PENDING
-  CONFIRMED
+  PAID
   CANCELLED
   REFUNDED
 }
 
-enum TransactionType {
-  ESCROW_IN
-  ESCROW_OUT
-  DRIVER_PAYOUT
-  REFUND
+model Payment {
+  id          String          @id @default(uuid())
+  bookingId   String          @unique
+  userId      String
+  provider    PaymentProvider
+  reference   String
+  phone       String?
+  amountCents Int
+  status      PaymentStatus   @default(PENDING)
+  createdAt   DateTime        @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+enum PaymentProvider {
+  MPESA
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+// ================================================
+// REFUNDS
+// ================================================
+
+model Refund {
+  id        String       @id @default(uuid())
+  bookingId String       @unique
+  userId    String
+  status    RefundStatus @default(PENDING)
+  reason    String?
+  ruleHits  Json?
+  createdAt DateTime     @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 }
 
 enum RefundStatus {
   PENDING
-  COMPLETED
-  FAILED
+  APPROVED
+  REJECTED
+  PAID
 }
 
-model User {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+// ================================================
+// FRAUD ENGINE
+// ================================================
 
-  email    String   @unique
-  password String
-  role     UserRole @default(PASSENGER)
+model FraudRule {
+  id     String  @id @default(uuid())
+  name   String
+  script String
+  active Boolean @default(true)
 
-  trips    Trip[]
-  bookings Booking[]
-  wallet   Wallet?
+  events FraudEvent[]
 }
 
-model Trip {
+model FraudEvent {
   id        String   @id @default(uuid())
+  userId    String
+  ruleId    String?
+  score     Int
+  metadata  Json?
   createdAt DateTime @default(now())
 
-  driverId String
-  driver   User   @relation(fields: [driverId], references: [id])
-
-  origin      String
-  destination String
-  date        DateTime
-  price       Int
-  seatsTotal  Int
-  seatsLeft   Int
-
-  bookings Booking[]
+  user User       @relation(fields: [userId], references: [id])
+  rule FraudRule? @relation(fields: [ruleId], references: [id])
 }
 
-model Booking {
+// ================================================
+// PAYOUTS + LEDGER
+// ================================================
+
+model Payout {
+  id          String   @id @default(uuid())
+  driverId    String
+  amountCents Int
+  batchId     String?
+  createdAt   DateTime @default(now())
+
+  driver Driver       @relation(fields: [driverId], references: [id])
+  batch  PayoutBatch? @relation(fields: [batchId], references: [id])
+}
+
+model PayoutBatch {
+  id         String   @id @default(uuid())
+  totalCents Int
+  createdAt  DateTime @default(now())
+
+  payouts Payout[]
+}
+
+model LedgerEntry {
+  id          String   @id @default(uuid())
+  userId      String?
+  driverId    String?
+  type        String
+  amountCents Int
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
+
+// ================================================
+// PUSH NOTIFICATIONS
+// ================================================
+
+model Notification {
   id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  data      Json?
   createdAt DateTime @default(now())
 
-  tripId String
-  userId String
-
-  trip Trip @relation(fields: [tripId], references: [id])
   user User @relation(fields: [userId], references: [id])
-
-  seats  Int
-  status BookingStatus @default(PENDING)
-
-  paymentIntentId String?
-
-  // 1-to-1 refund relation
-  refund Refund?
 }
 
-model Wallet {
+// ================================================
+// OUTBOX + DLQ
+// ================================================
+
+model OutboxEvent {
   id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
-
-  balance Int @default(0)
-
-  transactions Transaction[]
-}
-
-model Transaction {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-
-  walletId String
-  wallet   Wallet @relation(fields: [walletId], references: [id])
-
-  amount Int
-  type   TransactionType
-}
-
-model Refund {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-
-  // must be unique for a 1-to-1 relation
-  bookingId String @unique
-
-  booking Booking @relation(fields: [bookingId], references: [id])
-
-  status RefundStatus @default(PENDING)
-}
-
-model Outbox {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-
   type      String
   payload   Json
-  processed Boolean @default(false)
+  createdAt DateTime @default(now())
+  processed Boolean  @default(false)
+}
+
+model DeadLetter {
+  id        String   @id @default(uuid())
+  queue     String
+  reason    String
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+// ================================================
+// CONFIG
+// ================================================
+
+model ConfigItem {
+  key   String @id
+  value Float?
 }

@@ -1,0 +1,32 @@
+/* Imports must come first */
+@import "leaflet/dist/leaflet.css";
+
+/* Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Small admin tweaks */
+body {
+  @apply bg-gray-50 text-gray-800;
+}
+
+:root {
+  --sisi-primary: #2563EB;
+  --sisi-accent: #F97316;
+}
+
+.dark {
+  --bg: #0b1220;
+}
+
+/* Small toast animation */
+@keyframes toastIn {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Apply animation to toast wrapper */
+.fixed > div > div {
+  animation: toastIn 0.18s ease;
+}

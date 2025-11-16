@@ -1,0 +1,12 @@
+// src/db.ts
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient({
+  log: [
+    { level: "info", emit: "stdout" },
+    { level: "warn", emit: "stdout" },
+    { level: "error", emit: "stdout" }
+  ]
+});
+
+export default prisma;

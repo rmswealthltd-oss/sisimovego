@@ -1,0 +1,24 @@
+/* apps/web/src/styles/map.css */
+
+/* Ensure Leaflet loads correctly in flex containers */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Map fullscreen wrappers */
+.map-wrapper {
+  @apply w-full h-[300px] md:h-[450px] relative overflow-hidden rounded-lg shadow;
+}
+
+.leaflet-marker-icon {
+  @apply drop-shadow;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply bg-white shadow-lg rounded-lg text-sm;
+}
+
+.leaflet-control-attribution {
+  @apply text-xs;
+}
