@@ -5,5 +5,6 @@ import { logger } from "../../lib/logger";
 
 export function startOutboxRunner() {
   logger.info("[OUTBOX] Worker starting...");
-  runOutboxPoller(2000); // no await — forever loop
+  runOutboxPoller(); // ← FIXED
 }
+

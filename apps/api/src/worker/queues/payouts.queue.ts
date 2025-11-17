@@ -2,7 +2,7 @@
 import prisma from "../../db";
 
 export async function enqueuePayout({ payoutId, phone, amount }: { payoutId: string; phone: string; amount: number }) {
-  return prisma.outbox.create({
+  return prisma.outboxEvent.create({
     data: {
       aggregateType: "Payout",
       aggregateId: payoutId,

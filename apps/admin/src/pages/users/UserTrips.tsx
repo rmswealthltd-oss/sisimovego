@@ -11,13 +11,15 @@ export default function UserTrips() {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { load(); }, [userId]);
+  useEffect(() => {
+    load();
+  }, [userId]);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await Api.get(`/trips?userId=${userId}`);
-      setTrips(res.trips ?? res);
+      const res = await Api.get(`/admin/users/${userId}/trips`);
+      setTrips(res.data ?? res);
     } catch {
       setTrips([]);
     } finally {
@@ -28,14 +30,25 @@ export default function UserTrips() {
   return (
     <div>
       <PageTitle>User Trips</PageTitle>
-      {loading ? <Loading /> : (
+
+      {loading ? (
+        <Loading />
+      ) : (
         <Table
           columns={[
-            { key: "id", title: "Trip ID", render: (t) => <Link to={`/trips?id=${t.id}`}>#{t.id}</Link> },
+            {
+              key: "id",
+              title: "Trip ID",
+              render: (t) => <Link to={`/trips/details?id=${t.id}`}>#{t.id}</Link>,
+            },
             { key: "origin", title: "Origin" },
             { key: "destination", title: "Destination" },
-            { key: "departureAt", title: "Departure", render: (t) => new Date(t.departureAt).toLocaleString() },
-            { key: "status", title: "Status" }
+            {
+              key: "departureAt",
+              title: "Departure",
+              render: (t) => new Date(t.departureAt).toLocaleString(),
+            },
+            { key: "status", title: "Status" },
           ]}
           data={trips}
         />

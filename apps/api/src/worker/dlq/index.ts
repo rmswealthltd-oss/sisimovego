@@ -1,6 +1,6 @@
 // src/worker/index.ts
-import { runOutboxLoop } from "./outbox/outbox.runner";
-import { env } from "../env";
+import { runOutboxLoop } from "../outbox/outbox.runner";
+import { env } from "./env";
 
 const PARALLEL_LOOPS = Number(process.env.WORKER_LOOPS ?? 2);
 const BATCH_SIZE = Number(process.env.WORKER_BATCH_SIZE ?? 10);

@@ -1,13 +1,14 @@
 // src/routes/admin/users.routes.ts
 import { Router } from "express";
+import prisma from "../../db";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
-import prisma from "../../db";
 
 const router = Router();
 
 /**
  * GET /api/admin/users
+ * List all users
  */
 router.get(
   "/",
@@ -15,27 +16,119 @@ router.get(
   asyncHandler(async (_req, res) => {
     const users = await prisma.user.findMany({
       orderBy: { createdAt: "desc" },
-      include: { driver: true, passenger: true }
+      include: {
+        driver: true,
+        passenger: true,
+        _count: { select: { trips: true } },
+      },
     });
+
     res.json(users);
   })
 );
 
 /**
- * POST /api/admin/users/toggle-admin
- * body: { userId }
+ * GET /api/admin/users/:id
+ * Get user profile + trips
  */
-router.post(
-  "/toggle-admin",
+router.get(
+  "/:id",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { userId } = req.body;
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      include: {
+        driver: true,
+        passenger: true,
+        trips: true,
+      },
+    });
+
+    if (!user) return res.status(404).json({ error: "not_found" });
+
+    res.json(user);
+  })
+);
+
+/**
+ * GET /api/admin/users/:id/trips
+ */
+router.get(
+  "/:id/trips",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const trips = await prisma.trip.findMany({
+      where: { userId: req.params.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(trips);
+  })
+);
+
+/**
+ * PUT /api/admin/users/:id
+ * Update user (name, email, phone)
+ */
+router.put(
+  "/:id",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { name, email, phone } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+    });
     if (!user) return res.status(404).json({ error: "not_found" });
 
     const updated = await prisma.user.update({
-      where: { id: userId },
-      data: { isAdmin: !user.isAdmin }
+      where: { id: user.id },
+      data: {
+        name: name ?? user.name,
+        email: email ?? user.email,
+        phone: phone ?? user.phone,
+      },
+    });
+
+    res.json(updated);
+  })
+);
+
+/**
+ * DELETE /api/admin/users/:id
+ */
+router.delete(
+  "/:id",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!user) return res.status(404).json({ error: "not_found" });
+
+    await prisma.user.delete({
+      where: { id: user.id },
+    });
+
+    res.json({ ok: true, deleted: true });
+  })
+);
+
+/**
+ * POST /api/admin/users/:id/suspend
+ */
+router.post(
+  "/:id/suspend",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!user) return res.status(404).json({ error: "not_found" });
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { suspended: true },
     });
 
     res.json({ ok: true, user: updated });
@@ -43,21 +136,23 @@ router.post(
 );
 
 /**
- * POST /api/admin/users/suspend
- * body: { userId }
+ * POST /api/admin/users/:id/activate
  */
 router.post(
-  "/suspend",
+  "/:id/activate",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { userId } = req.body;
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!user) return res.status(404).json({ error: "not_found" });
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { suspended: true }
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { suspended: false },
     });
 
-    res.json({ ok: true });
+    res.json({ ok: true, user: updated });
   })
 );
 

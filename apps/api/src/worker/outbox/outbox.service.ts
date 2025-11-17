@@ -1,41 +1,93 @@
-// apps/api/src/worker/outbox/outbox.service.ts
-
+// src/lib/outbox/outbox.service.ts
 import prisma from "../../db";
 import { logger } from "../../lib/logger";
+import {processOutboxEvent} from "../worker/processors";
 
 export class OutboxService {
   /**
-   * Emit a single event
+   * Write a new outbox event
    */
-  static async emit(type: string, payload: unknown) {
-    try {
-      const evt = await prisma.outboxEvent.create({
-        data: { type, payload },
-      });
+  static async emit(params: {
+    type: string;
+    aggregateType?: string;
+    aggregateId?: string;
+    payload: any;
+    channel?: string;
+  }) {
+    const { type, aggregateType, aggregateId, payload, channel } = params;
 
-      logger.info(`[OUTBOX] Event queued: ${type} (${evt.id})`);
-      return evt;
-    } catch (err: any) {
-      logger.error(`[OUTBOX ERROR] emit() failed: ${err.message}`);
-      throw err;
-    }
+    const outbox = await prisma.outboxEvent.create({
+      data: {
+        type,
+        aggregateType,
+        aggregateId,
+        payload,
+        channel: channel ?? "worker",
+      },
+    });
+
+    logger.info(
+      `[OUTBOX] Event created: ${outbox.id} type=${type} aggregate=${aggregateType}`
+    );
+
+    return outbox;
   }
 
   /**
-   * Emit multiple events in a single transaction
+   * Mark as processed
    */
-  static async emitMany(events: Array<{ type: string; payload: unknown }>) {
+  static async markProcessed(id: string) {
+    await prisma.outboxEvent.update({
+      where: { id },
+      data: {
+        processed: true,
+        status: "PROCESSED",
+      },
+    });
+  }
+
+  /**
+   * Mark as failed
+   */
+  static async fail(id: string, errorMsg: string) {
+    await prisma.outboxEvent.update({
+      where: { id },
+      data: {
+        status: "FAILED",
+        attempts: { increment: 1 },
+        lastError: errorMsg,
+      },
+    });
+  }
+}
+
+/**
+ * Runs a single batch of outbox events
+ */
+export async function runOutboxOnce(batchSize = 10) {
+  const events = await prisma.outboxEvent.findMany({
+    where: { status: "READY" },
+    take: batchSize,
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const event of events) {
     try {
-      return await prisma.$transaction(
-        events.map((e) =>
-          prisma.outboxEvent.create({
-            data: { type: e.type, payload: e.payload },
-          })
-        )
-      );
+      await processOutboxEvent(event);
+
+      await prisma.outboxEvent.update({
+        where: { id: event.id },
+        data: { status: "PROCESSED", processed: true },
+      });
     } catch (err: any) {
-      logger.error(`[OUTBOX ERROR] emitMany() failed: ${err.message}`);
-      throw err;
+      await prisma.outboxEvent.update({
+        where: { id: event.id },
+        data: {
+          status: "FAILED",
+          attempts: { increment: 1 },
+          lastError: err?.message ?? "Unknown error",
+        },
+      });
     }
   }
 }

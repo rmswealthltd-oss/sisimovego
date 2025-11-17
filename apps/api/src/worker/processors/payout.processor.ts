@@ -22,7 +22,7 @@ export async function processPayoutJob(job: { data: { payoutId: string; phone: s
     });
 
     // outbox: publish payout sent event
-    await prisma.outbox.create({
+    await prisma.outboxEvent.create({
       data: {
         aggregateType: "Payout",
         aggregateId: payoutId,

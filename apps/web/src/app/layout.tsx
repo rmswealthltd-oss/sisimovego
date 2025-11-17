@@ -1,14 +1,24 @@
-// apps/web/src/app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
-
-import { ThemeProvider } from "@/context/ThemeContext";
-import { AuthProvider } from "@/context/AuthContext";
+import { Inter } from "next/font/google";
 
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 
+import { ThemeProvider } from "@/context/ThemeContext";
+import { AuthProvider } from "@/context/AuthContext";
+
+// Load Google Font
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+// ========================================================
+//                 METADATA (SEO + PWA)
+// ========================================================
 export const metadata: Metadata = {
   metadataBase: new URL("https://sisimove.com"),
 
@@ -22,9 +32,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/apple-icon.png",
+    icon: ["/icons/icon-192.png"],
+    apple: ["/icons/icon-192.png"],
   },
+
+  themeColor: "#2563eb",
 
   openGraph: {
     title: "SisiMove — Africa’s Best Ridesharing App",
@@ -34,7 +46,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image", // auto-generated OG card
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
         alt: "SisiMove OpenGraph Image",
@@ -50,33 +62,26 @@ export const metadata: Metadata = {
   },
 };
 
+// ========================================================
+//                         LAYOUT
+// ========================================================
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Mobile viewport */}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1"
         />
 
-        {/* PWA icons */}
-        <link rel="icon" href="/icons/icon-192.png" />
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
-
-        {/* PWA theme */}
-        <meta name="theme-color" content="#2563eb" />
-
-        {/* iOS PWA */}
+        {/* Modern PWA tags */}
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
-        <meta name="apple-mobile-web-app-title" content="SisiMove" />
       </head>
 
-      <body className="bg-white text-gray-900">
+      <body
+        className={`${inter.variable} antialiased bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100`}
+      >
         <ThemeProvider>
           <AuthProvider>
             <div className="min-h-screen flex flex-col">
@@ -85,7 +90,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <BottomNav />
             </div>
 
-            {/* Service Worker */}
+            {/* Service Worker registration */}
             <script
               dangerouslySetInnerHTML={{
                 __html: `

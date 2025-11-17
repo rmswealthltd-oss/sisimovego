@@ -6,11 +6,11 @@ import prisma from "../../db";
  * This is admin-operated (manual), not automatic.
  */
 export async function reprocessDLQ(dlqId: string) {
-  const row = await prisma.dlq.findUnique({ where: { id: dlqId } });
+  const row = await prisma.deadLetter.findUnique({ where: { id: dlqId } });
   if (!row) throw new Error("dlq_not_found");
 
   // naive reprocess: create an outbox row for the original aggregate
-  await prisma.outbox.create({
+  await prisma.outboxEvent.create({
     data: {
       aggregateType: "DLQRetry",
       aggregateId: row.id,

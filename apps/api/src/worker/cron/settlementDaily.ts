@@ -12,7 +12,7 @@ export async function settlementDaily() {
     where: { createdAt: { gte: from } }
   });
 
-  await prisma.outbox.create({
+  await prisma.outboxEvent.create({
     data: {
       aggregateType: "Cron",
       aggregateId: `settlement_${Date.now()}`,

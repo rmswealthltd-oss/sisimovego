@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import clsx from "@/utils/clsx";
+import clsx from "clsx";
 
 interface SeatSelectorProps {
   total: number;

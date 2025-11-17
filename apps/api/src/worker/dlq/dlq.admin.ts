@@ -5,10 +5,10 @@ import prisma from "../../db";
  * Reprocess a specific DLQ entry by creating a new outbox row
  */
 export async function adminReprocessDLQ(dlqId: string) {
-  const row = await prisma.dlq.findUnique({ where: { id: dlqId } });
+  const row = await prisma.deadLetter.findUnique({ where: { id: dlqId } });
   if (!row) throw new Error("dlq_not_found");
 
-  await prisma.outbox.create({
+  await prisma.outboxEvent.create({
     data: {
       aggregateType: "DLQRetry",
       aggregateId: dlqId,

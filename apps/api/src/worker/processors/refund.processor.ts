@@ -2,11 +2,6 @@
 import prisma from "../../db";
 import { sendMpesaPayout } from "../../lib/sendMpesaPay";
 
-/**
- * job.data: { refundId, bookingId, amount }
- *
- * Refunds are executed as external payouts to the passenger phone.
- */
 export async function processRefundJob(job: { data: { refundId: string; bookingId: string; amount: number; phone?: string } } | any) {
   const data = job.data ?? job;
   const { refundId, bookingId, amount, phone } = data;
@@ -15,58 +10,69 @@ export async function processRefundJob(job: { data: { refundId: string; bookingI
   if (!refund) throw new Error("refund_not_found");
 
   try {
-    // In many setups you refund via the same provider used for payment,
-    // otherwise you use a payout mechanism (Mpesa B2C) to the passenger.
+    // get passenger phone if not provided
     if (!phone) {
-      // attempt to fetch phone from booking -> passenger
-      const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { passenger: true } });
-      if (booking?.passenger?.phone) {
-        data.phone = booking.passenger.phone;
-      } else {
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+        include: { user: true }, // FIXED
+      });
+
+      if (!booking || !booking.user?.phone) {
         throw new Error("passenger_phone_not_found");
       }
+
+      data.phone = booking.user.phone;
     }
 
-    const res = await sendMpesaPayout({ phone: data.phone, amount: amount / 100 }); // sendMpesaPayout expects amount in units (not cents) in our stub
+    // Send Mpesa payout (convert from cents)
+    const res = await sendMpesaPayout({
+      phone: data.phone,
+      amount: amount / 100,
+    });
 
     // mark refund paid
     await prisma.refund.update({
       where: { id: refundId },
-      data: { status: "PAID" }
+      data: { status: "PAID" },
     });
 
-    // ledger entry
+    // ledger entry — FIXED field name: amountCents
     await prisma.ledger.create({
       data: {
         bookingId: bookingId ?? null,
-        amount: -amount,
+        amountCents: -amount, // FIXED
         type: "REFUND",
-        description: `Refund executed ${refundId}, providerTx=${res.providerTxId}`
-      }
+        description: `Refund executed ${refundId}, providerTx=${res.providerTxId}`,
+      },
     });
 
     // outbox: RefundPaid
-    await prisma.outbox.create({
+    await prisma.outboxEvent.create({
       data: {
         aggregateType: "Refund",
         aggregateId: refundId,
         type: "RefundPaid",
-        payload: JSON.stringify({ refundId, providerTxId: res.providerTxId }),
+        payload: JSON.stringify({
+          refundId,
+          providerTxId: res.providerTxId,
+        }),
         channel: "pubsub",
-        status: "READY"
-      }
+        status: "READY",
+      },
     });
 
     return true;
   } catch (err: any) {
     console.error("processRefundJob error", err);
+
     await prisma.dlq.create({
       data: {
         source: "Refund",
         payload: data,
-        error: String(err?.message ?? err)
-      }
+        error: String(err?.message ?? err),
+      },
     });
+
     throw err;
   }
 }

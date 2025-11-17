@@ -3,8 +3,8 @@ import http from "http";
 import { createApp } from "./app";
 import { initSocket } from "./socket";
 import { env } from "./env";
-import { startOutboxRunner } from "./worker/outbox/outbox.runner";
-import { startCronTasks } from "./worker/cron/cron.queue";
+// import { startOutboxRunner } from "./worker/outbox/outbox.runner";
+// import { startCronTasks } from "./worker/cron/cron.queue";
 
 async function main() {
   const app = createApp();
@@ -17,21 +17,21 @@ async function main() {
 
   // ------------------------------
   // OUTBOX → DISPATCHER WORKER
-  // (push notifications, emails, SMS, events)
+  // Disabled for dev
   // ------------------------------
-  startOutboxRunner();
+  // startOutboxRunner();
 
   // ------------------------------
-  // CRON TASKS
-  // auto-complete trips, nightly cleanup, settlement etc.
+  // CRON TASKS — Disabled for now
   // ------------------------------
-  startCronTasks();
+  // startCronTasks();
 
   // ------------------------------
   // START SERVER
   // ------------------------------
   server.listen(env.PORT, () => {
     console.log(`🚀 API running on port ${env.PORT}`);
+    console.log(`⚠️ Cron + Outbox disabled in dev mode`);
   });
 
   // ------------------------------

@@ -3,7 +3,7 @@ import prisma from "../../db";
 
 export async function enqueueMpesaCallback(payload: any) {
   // store raw callback into outbox to be processed by mpesa processor
-  return prisma.outbox.create({
+  return prisma.outboxEvent.create({
     data: {
       aggregateType: "PaymentCallback",
       aggregateId: payload?.providerTxId ?? `cb_${Date.now()}`,

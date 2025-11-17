@@ -5,7 +5,7 @@ import prisma from "../../db";
  * Enqueue a refund job by creating an Outbox row.
  */
 export async function enqueueRefund({ refundId, bookingId, amountCents, phone }: { refundId: string; bookingId?: string; amountCents: number; phone?: string }) {
-  return prisma.outbox.create({
+  return prisma.outboxEvent.create({
     data: {
       aggregateType: "Refund",
       aggregateId: refundId,

@@ -54,6 +54,13 @@ import adminOpsRoutes from "./admin/ops.routes";
 import adminMapRoutes from "./admin/map.routes";
 import adminAnalyticsRoutes from "./admin/analytics.routes";
 
+// NEW admin routes that were missing
+import adminBookingsRoutes from "./admin/bookings.routes";
+import adminNotificationsRoutes from "./admin/notifications.routes";
+import adminSettingsRoutes from "./admin/settings.routes";
+import adminDriversRoutes from "./admin/drivers.routes";
+import adminPayoutsRoutes from "./admin/payouts.routes"; // if exists
+
 const router = Router();
 
 // System
@@ -103,9 +110,14 @@ router.use("/fraud/alerts", fraudAlertsRoutes);
 router.use("/push", pushRoutes);
 router.use("/push/subscription", subscriptionRoutes);
 
-// Admin
+// Admin (core)
 router.use("/admin", adminRoutes);
 router.use("/admin/users", adminUsersRoutes);
+router.use("/admin/drivers", adminDriversRoutes);       // ← FIXED
+router.use("/admin/bookings", adminBookingsRoutes);     // ← FIXED
+router.use("/admin/notifications", adminNotificationsRoutes); // ← FIXED
+router.use("/admin/settings", adminSettingsRoutes);     // ← FIXED
+router.use("/admin/payouts", adminPayoutsRoutes);       // ← optional
 router.use("/admin/dlq", adminDlqRoutes);
 router.use("/admin/ops", adminOpsRoutes);
 router.use("/admin/map", adminMapRoutes);

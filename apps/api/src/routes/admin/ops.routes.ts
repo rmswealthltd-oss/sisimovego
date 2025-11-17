@@ -2,12 +2,14 @@
 import { Router } from "express";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
+
 import { OpsService } from "../../modules/admin/ops.service";
+import { TripService } from "../../modules/trips/trip.service";
 
 const router = Router();
 
 /**
- * POST /api/admin/ops/force-complete-trip
+ * POST /admin/ops/force-complete-trip
  * body: { tripId }
  */
 router.post(
@@ -21,7 +23,7 @@ router.post(
 );
 
 /**
- * POST /api/admin/ops/fix-booking
+ * POST /admin/ops/fix-booking
  * body: { bookingId }
  */
 router.post(
@@ -31,6 +33,34 @@ router.post(
     const { bookingId } = req.body;
     const out = await OpsService.fixBooking(bookingId);
     res.json(out);
+  })
+);
+
+/**
+ * POST /admin/ops/restart-trip/:tripId
+ * Restarts an ongoing or stuck trip via TripService
+ */
+router.post(
+  "/restart-trip/:tripId",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { tripId } = req.params;
+    const result = await TripService.restartTrip(tripId);
+    res.json(result);
+  })
+);
+
+/**
+ * POST /admin/ops/force-complete/:tripId
+ * Force completes a trip via TripService
+ */
+router.post(
+  "/force-complete/:tripId",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { tripId } = req.params;
+    const result = await TripService.forceComplete(tripId);
+    res.json(result);
   })
 );
 

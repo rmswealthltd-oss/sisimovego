@@ -1,4 +1,3 @@
-// src/routes/push/push.routes.ts
 import { Router } from "express";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { requireAuth } from "../../middleware/requireAuth";

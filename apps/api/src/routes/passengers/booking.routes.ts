@@ -1,4 +1,3 @@
-// src/routes/passengers/booking.routes.ts
 import { Router } from "express";
 import { requireAuth } from "../../middleware/requireAuth";
 import { asyncHandler } from "../../middleware/asyncHandler";
@@ -22,28 +21,8 @@ const cancelSchema = z.object({
   reason: z.string().optional()
 });
 
-// POST /api/passengers/bookings
-router.post(
-  "/",
-  rateLimit,
-  requireAuth,
-  validateBody(createSchema),
-  asyncHandler(async (req, res) => BookingController.create(req, res))
-);
-
-// POST /api/passengers/bookings/cancel
-router.post(
-  "/cancel",
-  requireAuth,
-  validateBody(cancelSchema),
-  asyncHandler(async (req, res) => BookingController.cancel(req, res))
-);
-
-// GET /api/passengers/bookings/my
-router.get(
-  "/my",
-  requireAuth,
-  asyncHandler(async (req, res) => BookingController.myBookings(req, res))
-);
+router.post("/", rateLimit, requireAuth, validateBody(createSchema), asyncHandler(BookingController.create));
+router.post("/cancel", requireAuth, validateBody(cancelSchema), asyncHandler(BookingController.cancel));
+router.get("/my", requireAuth, asyncHandler(BookingController.myBookings));
 
 export default router;

@@ -1,5 +1,6 @@
 // src/routes/admin/analytics.routes.ts
 import { Router } from "express";
+import prisma from "../../db";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
 import { AnalyticsService } from "../../modules/admin/analytics.service";
@@ -7,19 +8,37 @@ import { AnalyticsService } from "../../modules/admin/analytics.service";
 const router = Router();
 
 /**
- * GET /api/admin/analytics/overview
+ * GET /admin/analytics
+ * Basic dashboard stats (users, drivers, trips, bookings)
+ */
+router.get(
+  "/",
+  requireAdmin,
+  asyncHandler(async (_, res) => {
+    const [users, drivers, trips, bookings] = await Promise.all([
+      prisma.user.count(),
+      prisma.driver.count(),
+      prisma.trip.count(),
+      prisma.booking.count(),
+    ]);
+
+    res.json({ users, drivers, trips, bookings });
+  })
+);
+
+/**
+ * GET /admin/analytics/overview
  */
 router.get(
   "/overview",
   requireAdmin,
   asyncHandler(async (_req, res) => {
-    const data = await AnalyticsService.getOverview();
-    res.json(data);
+    res.json(await AnalyticsService.getOverview());
   })
 );
 
 /**
- * GET /api/admin/analytics/revenue
+ * GET /admin/analytics/revenue
  */
 router.get(
   "/revenue",
@@ -30,7 +49,7 @@ router.get(
 );
 
 /**
- * GET /api/admin/analytics/trips
+ * GET /admin/analytics/trips
  */
 router.get(
   "/trips",

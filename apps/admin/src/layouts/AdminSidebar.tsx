@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Home,
   User,
@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 const menu = [
   { label: "Dashboard", to: "/admin", icon: Home },
@@ -26,6 +27,14 @@ const menu = [
 ];
 
 export default function AdminSidebar() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <aside className="w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col justify-between">
       <div className="p-4">
@@ -56,7 +65,10 @@ export default function AdminSidebar() {
       </div>
 
       <div className="p-4 border-t dark:border-gray-700">
-        <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-100 text-red-600 dark:hover:bg-red-900 dark:text-red-400 w-full">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-100 text-red-600 dark:hover:bg-red-900 dark:text-red-400 w-full"
+        >
           <LogOut size={18} />
           Logout
         </button>

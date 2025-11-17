@@ -1,26 +1,23 @@
-import { getToken } from "./auth";
-
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001/api";
 
 export const Api = {
   async request(path: string, options: RequestInit = {}) {
-    const token = getToken();
-
     const isFormData = options.body instanceof FormData;
 
     const headers: HeadersInit = {
       ...(options.headers || {}),
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // ❌ NO Authorization header — we use cookies only
     };
 
     const res = await fetch(`${API_BASE}${path}`, {
-      credentials: "include",
-      ...options,
+      method: options.method,
+      credentials: "include", // ⭐ REQUIRED — sends auth cookie
       headers,
+      body: options.body,
     });
 
-    // Try to parse JSON, fallback to empty object
+    // Parse JSON response
     let data: any;
     try {
       data = await res.json();
@@ -28,8 +25,9 @@ export const Api = {
       data = {};
     }
 
+    // Throw API errors
     if (!res.ok) {
-      const err: any = new Error(data.message || "API Error");
+      const err = new Error(data.message || "API Error") as any;
       err.status = res.status;
       err.data = data;
       throw err;

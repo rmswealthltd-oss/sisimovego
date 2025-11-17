@@ -1,7 +1,7 @@
 // apps/web/src/components/TripStatus.tsx
 "use client";
 
-import clsx from "@/utils/clsx";
+import clsx from "clsx";
 
 interface Props {
   status: string;

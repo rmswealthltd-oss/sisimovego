@@ -2,7 +2,7 @@
 import prisma from "../../db";
 
 export async function enqueuePushBroadcast({ userIds, payload }: { userIds: string[]; payload: any }) {
-  return prisma.outbox.create({
+  return prisma.outboxEvent.create({
     data: {
       aggregateType: "PushBroadcast",
       aggregateId: "broadcast_" + Date.now(),

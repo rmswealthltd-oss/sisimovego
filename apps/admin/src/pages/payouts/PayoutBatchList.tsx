@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 export default function PayoutBatchList() {
   const [batches, setBatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     load();
@@ -16,12 +17,35 @@ export default function PayoutBatchList() {
   async function load() {
     setLoading(true);
     try {
-      const res = await Api.get("/payouts/batch");
-      setBatches(res.batches ?? res.rows ?? []);
+      const res = await Api.get(
+        `/admin/payouts${q ? `?q=${encodeURIComponent(q)}` : ""}`
+      );
+      setBatches(res.batches ?? res);
     } catch (e) {
+      console.error(e);
       setBatches([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function approve(id: string) {
+    if (!window.confirm("Approve this payout batch?")) return;
+    try {
+      await Api.post(`/admin/payouts/${id}/approve`);
+      load();
+    } catch (e) {
+      alert("Error approving payout");
+    }
+  }
+
+  async function reject(id: string) {
+    if (!window.confirm("Reject this payout batch?")) return;
+    try {
+      await Api.post(`/admin/payouts/${id}/reject`);
+      load();
+    } catch (e) {
+      alert("Error rejecting payout");
     }
   }
 
@@ -29,20 +53,63 @@ export default function PayoutBatchList() {
     <div>
       <PageTitle>Payout Batches</PageTitle>
 
+      {/* Search bar */}
+      <div className="mb-4 flex gap-2">
+        <input
+          className="border px-3 py-2 rounded flex-1"
+          placeholder="Search batchID / status"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+          onClick={load}
+        >
+          Search
+        </button>
+      </div>
+
       {loading ? (
         <Loading />
       ) : (
         <Table
           columns={[
-            { key: "id", title: "Batch ID", render: (b) => <Link to={`/payouts/batch?id=${b.id}`}>#{b.id}</Link> },
-            { key: "count", title: "Count", render: (b) => b.count ?? b.items?.length ?? 0 },
-            { key: "total", title: "Total", render: (b) => `KES ${(b.totalAmount / 100).toFixed(2)}` },
-            { key: "status", title: "Status", render: (b) => b.status },
-            { key: "createdAt", title: "Created", render: (b) => new Date(b.createdAt).toLocaleString() }
-          ]}
-          data={batches}
-        />
-      )}
-    </div>
-  );
-}
+            {
+              key: "id",
+              title: "Batch ID",
+              render: (b) => (
+                <Link to={`/admin/payouts/details?id=${b.id}`}>#{b.id}</Link>
+              ),
+            },
+            { key: "totalAmount", title: "Amount", render: (b) => `KSh ${b.totalAmount}` },
+            { key: "itemsCount", title: "Items" },
+            {
+              key: "status",
+              title: "Status",
+              render: (b) => (
+                <span
+                  className={
+                    b.status === "PENDING"
+                      ? "text-yellow-600"
+                      : b.status === "APPROVED"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }
+                >
+                  {b.status}
+                </span>
+              ),
+            },
+            {
+              key: "createdAt",
+              title: "Created",
+              render: (b) =>
+                new Date(b.createdAt).toLocaleString(),
+            },
+            {
+              key: "actions",
+              title: "Actions",
+              render: (b) => (
+                <div className="flex gap-2">
+                  <Link
+                    to=

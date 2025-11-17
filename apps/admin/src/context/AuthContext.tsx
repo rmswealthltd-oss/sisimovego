@@ -1,53 +1,57 @@
-import React, { createContext, useState, useEffect } from "react";
-import { getToken, saveToken, clearToken, saveUser, getUser, setUserFromToken } from "../lib/auth";
+import { createContext, useContext, useState, useEffect } from "react";
 import { Api } from "../lib/api";
+import { getToken, saveToken, clearToken } from "../lib/auth";
 
-type AuthContextType = {
-  token: string | null;
-  user: any | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-};
+const AuthContext = createContext(null);
 
-export const AuthContext = createContext<AuthContextType>({
-  token: null,
-  user: null,
-  loading: true,
-  login: async () => {},
-  logout: () => {}
-});
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(getToken());
-  const [user, setUser] = useState<any | null>(getUser());
-  const [loading, setLoading] = useState(false);
-
+  // Load user on startup if token exists
   useEffect(() => {
-    if (token && !user) {
-      setUser(getUser());
+    const token = getToken();
+    if (!token) {
+      setLoading(false);
+      return;
     }
+
+    Api.get("/auth/me")
+      .then((data) => {
+        setUser(data.user);
+      })
+      .catch(() => {
+        clearToken();
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const res = await Api.post("/auth/login", { email, password });
-      const t = res.token;
-      saveToken(t);
-      setUserFromToken(t);
-      setToken(t);
-      setUser(getUser());
-    } finally {
-      setLoading(false);
+  async function login(email, password) {
+    const response = await Api.post("/auth/login", { email, password });
+
+    if (!response.token) {
+      throw new Error("Login failed: No token returned");
     }
-  };
 
-  const logout = () => {
+    saveToken(response.token);
+    setUser(response.user);
+  }
+
+  function logout() {
     clearToken();
-    setToken(null);
     setUser(null);
-  };
+  }
 
-  return <AuthContext.Provider value={{ token, user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuthContext = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuthContext must be inside <AuthProvider>");
+  return ctx;
 };

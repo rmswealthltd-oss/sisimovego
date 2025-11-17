@@ -1,42 +1,75 @@
 // apps/web/src/app/results/page.tsx
-import TripCard from "@/components/TripCard"; // client
-import ListSkeleton from "@/components/ListSkeleton"; // client
+import TripCard from "@/components/TripCard"; 
 import { buildMeta } from "@/lib/seo";
 import { ENDPOINTS } from "@/lib/config";
 
-export const metadata = buildMeta({ title: "Search results", description: "Available trips" });
+export const metadata = buildMeta({
+  title: "Search results",
+  description: "Available trips",
+});
 
-type Props = { searchParams?: { origin?: string; destination?: string; date?: string } };
+type Props = {
+  searchParams?: {
+    origin?: string;
+    destination?: string;
+    date?: string;
+  };
+};
+
+// Normalizes whatever backend returns → TripCard-safe shape
+function normalizeTrip(raw: any) {
+  return {
+    id: raw.id,
+    origin: raw.origin,
+    destination: raw.destination,
+
+    departureAt: raw.departureAt ?? raw.departure_time ?? null,
+    arrivalAt: raw.arrivalAt ?? raw.arrival_time ?? null,
+
+    driverName:
+      raw.driverName ??
+      raw.driver ??
+      raw.driver_full_name ??
+      raw.operatorName ??
+      "Unknown",
+
+    priceCents:
+      raw.priceCents ??
+      raw.fareCents ??
+      raw.pricePerSeat ??
+      raw.fare ??
+      0,
+  };
+}
 
 async function fetchTrips(origin?: string, destination?: string, date?: string) {
-  // Build URL to the API search endpoint
   const params = new URLSearchParams();
   if (origin) params.set("origin", origin);
   if (destination) params.set("destination", destination);
   if (date) params.set("date", date);
 
   const url = `${ENDPOINTS.TRIPS_SEARCH}?${params.toString()}`;
-  // server fetch (can be cached). Revalidate every 60s for near-realtime freshness.
+
   const res = await fetch(url, { next: { revalidate: 60 } });
-  if (!res.ok) {
-    // return empty array on error — UI can show friendly message
-    return [];
-  }
+  if (!res.ok) return [];
+
   const body = await res.json();
-  return body.trips ?? body;
+  const raw = body.trips ?? body;
+
+  return Array.isArray(raw) ? raw.map(normalizeTrip) : [];
 }
 
 export default async function ResultsPage({ searchParams }: Props) {
-  // `searchParams` is available in Next.js server components
   const origin = searchParams?.origin ?? "";
   const destination = searchParams?.destination ?? "";
   const date = searchParams?.date ?? "";
 
-  let trips = [];
+  let trips: any[] = [];
+
   try {
     trips = await fetchTrips(origin, destination, date);
   } catch (e) {
-    console.error("Failed fetching trips server-side", e);
+    console.error("Failed fetching trips", e);
     trips = [];
   }
 
@@ -44,7 +77,9 @@ export default async function ResultsPage({ searchParams }: Props) {
     <div className="max-w-5xl mx-auto p-6">
       <header className="mb-4">
         <h1 className="text-2xl font-semibold">Search results</h1>
-        <p className="text-gray-600 mt-1">{trips.length ? `${trips.length} result(s)` : "No trips found"}</p>
+        <p className="text-gray-600 mt-1">
+          {trips.length ? `${trips.length} result(s)` : "No trips found"}
+        </p>
       </header>
 
       <main>
@@ -52,9 +87,8 @@ export default async function ResultsPage({ searchParams }: Props) {
           <div className="text-gray-600">No trips. Try adjusting your search.</div>
         ) : (
           <div className="space-y-4">
-            {trips.map((t: any) => (
-              // TripCard is a client component (interactive) — OK to use inside server component
-              <TripCard key={t.id} trip={t} />
+            {trips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} />
             ))}
           </div>
         )}

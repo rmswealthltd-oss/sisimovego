@@ -2,37 +2,36 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatISO } from "date-fns";
 
 export default function HeroSearch() {
   const router = useRouter();
 
+  // Native, stable date (no date-fns)
+  const today = new Date().toISOString().split("T")[0];
+
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
-  const [date, setDate] = useState<string>(
-    formatISO(new Date(), { representation: "date" })
-  );
+  const [date, setDate] = useState(today);
 
   function submit(e?: React.FormEvent) {
     e?.preventDefault();
 
-    // Ensure required fields
     if (!origin.trim() || !destination.trim()) return;
 
     const q = new URLSearchParams();
-    q.set("origin", origin);
-    q.set("destination", destination);
+    q.set("origin", origin.trim());
+    q.set("destination", destination.trim());
     q.set("date", date);
 
     router.push(`/results?${q.toString()}`);
   }
 
   return (
-    <section className="bg-gradient-to-r from-sky-50 to-white rounded-xl p-6 shadow-sm space-y-4">
+    <section className="bg-white border rounded-xl p-6 shadow-sm space-y-4">
       <div>
         <h2 className="text-xl font-semibold">Find your next trip</h2>
         <p className="text-sm text-gray-600">
-          Safe, fast and reliable rides across Africa.
+          Enter your route and travel date to get started.
         </p>
       </div>
 
@@ -40,7 +39,6 @@ export default function HeroSearch() {
         onSubmit={submit}
         className="grid grid-cols-1 md:grid-cols-4 gap-3"
       >
-        {/* ORIGIN */}
         <input
           value={origin}
           onChange={(e) => setOrigin(e.target.value)}
@@ -48,7 +46,6 @@ export default function HeroSearch() {
           className="border p-3 rounded-lg text-sm w-full"
         />
 
-        {/* DESTINATION */}
         <input
           value={destination}
           onChange={(e) => setDestination(e.target.value)}
@@ -56,15 +53,14 @@ export default function HeroSearch() {
           className="border p-3 rounded-lg text-sm w-full"
         />
 
-        {/* DATE */}
         <input
           type="date"
           value={date}
+          min={today}
           onChange={(e) => setDate(e.target.value)}
           className="border p-3 rounded-lg text-sm w-full"
         />
 
-        {/* BUTTON */}
         <button
           type="submit"
           className="bg-primary text-white px-4 py-3 rounded-lg w-full font-medium"

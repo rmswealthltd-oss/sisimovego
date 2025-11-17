@@ -5,12 +5,12 @@ import prisma from "../../db";
  * Summarize fraud alerts and create an outbox event to email ops.
  */
 export async function nightlyFraudEmail() {
-  const cases = await prisma.fraudCase.findMany({
+  const cases = await prisma.fraudEvent.findMany({
     where: { status: "OPEN" },
     take: 200
   });
 
-  await prisma.outbox.create({
+  await prisma.outboxEvent.create({
     data: {
       aggregateType: "Cron",
       aggregateId: `fraud_summary_${Date.now()}`,

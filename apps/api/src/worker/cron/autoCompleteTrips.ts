@@ -15,7 +15,7 @@ export async function autoCompleteTrips() {
 
   for (const t of rows) {
     try {
-      await prisma.outbox.create({
+      await prisma.outboxEvent.create({
         data: {
           aggregateType: "Trip",
           aggregateId: t.id,

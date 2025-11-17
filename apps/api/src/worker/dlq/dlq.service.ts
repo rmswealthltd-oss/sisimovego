@@ -9,17 +9,16 @@ export class DLQService {
    */
   static async sendToDLQ(event: any, errorMessage: string) {
     try {
-      await prisma.deadLetterQueue.create({
+      await prisma.deadLetter.create({
         data: {
-          outboxId: event.id,
-          eventType: event.type,
+          source: event.type,
           payload: event.payload,
           error: errorMessage ?? "Unknown error",
         },
       });
 
       logger.warn(
-        `[DLQ] Event moved to DLQ: ${event.id} (type=${event.type})`
+        `[DLQ] Event moved to DeadLetter: ${event.id} (type=${event.type})`
       );
     } catch (err: any) {
       logger.error(`[DLQ ERROR] Failed to store DLQ record: ${err.message}`);
@@ -30,7 +29,7 @@ export class DLQService {
    * Requeue an event from DLQ back into Outbox.
    */
   static async requeue(dlqId: string) {
-    const dlq = await prisma.deadLetterQueue.findUnique({
+    const dlq = await prisma.deadLetter.findUnique({
       where: { id: dlqId },
     });
 
@@ -40,15 +39,16 @@ export class DLQService {
       data: {
         aggregateType: "DLQ",
         aggregateId: `dlq-retry-${Date.now()}`,
-        type: dlq.eventType,
+        type: dlq.source,
         payload: dlq.payload,
+        status: "READY"
       },
     });
 
-    await prisma.deadLetterQueue.delete({
+    await prisma.deadLetter.delete({
       where: { id: dlqId },
     });
 
-    logger.info(`[DLQ] Requeued DLQ event: ${dlqId}`);
+    logger.info(`[DLQ] Requeued DeadLetter event: ${dlqId}`);
   }
 }

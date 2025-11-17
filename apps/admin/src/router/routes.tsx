@@ -1,102 +1,144 @@
 import React from "react";
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
 
-// dashboard
-const Dashboard = React.lazy(() => import("../pages/Dashboard"));
+import ProtectedRoute from "./ProtectedRoute";
+import AdminLayout from "../layouts/AdminLayout";
 
-// trips
-const TripList = React.lazy(() => import("../pages/trips/TripList"));
-const TripInspector = React.lazy(() => import("../pages/trips/TripInspector"));
+// Pages
+import Login from "../pages/Login";
+import Dashboard from "../pages/Dashboard";
 
-// drivers
-const DriversList = React.lazy(() => import("../pages/drivers/DriversList"));
-const DriverProfile = React.lazy(() => import("../pages/drivers/DriverProfile"));
-const DriverPayouts = React.lazy(() => import("../pages/drivers/DriverPayouts"));
-const DriverTrips = React.lazy(() => import("../pages/drivers/DriverTrips"));
+// Trips
+import TripList from "../pages/trips/TripList";
+import TripInspector from "../pages/trips/TripInspector";
 
-// refunds
-const RefundList = React.lazy(() => import("../pages/refunds/RefundList"));
-const RefundDetails = React.lazy(() => import("../pages/refunds/RefundDetails"));
+// Drivers
+import DriversList from "../pages/drivers/DriversList";
+import DriverProfile from "../pages/drivers/DriverProfile";
 
-// payouts
-const PayoutList = React.lazy(() => import("../pages/payouts/PayoutList"));
-const PayoutBatchList = React.lazy(() => import("../pages/payouts/PayoutBatchList"));
-const PayoutBatchDetails = React.lazy(() => import("../pages/payouts/PayoutBatchDetails"));
-const LedgerViewer = React.lazy(() => import("../pages/payouts/LedgerViewer"));
+// Refunds
+import RefundList from "../pages/refunds/RefundList";
+import RefundDetails from "../pages/refunds/RefundDetails";
 
-// reconciliation
-const ReconciliationDashboard = React.lazy(() => import("../pages/reconciliation/ReconciliationDashboard"));
-const MpesaReconciliation = React.lazy(() => import("../pages/reconciliation/MpesaReconciliation"));
-const StripeReconciliation = React.lazy(() => import("../pages/reconciliation/StripeReconciliation"));
-const SettlementMismatchList = React.lazy(() => import("../pages/reconciliation/SettlementMismatchList"));
+// Payouts
+import PayoutList from "../pages/payouts/PayoutList";
+import PayoutBatchList from "../pages/payouts/PayoutBatchList";
+import PayoutBatchDetails from "../pages/payouts/PayoutBatchDetails";
 
-// fraud
-const FraudDashboard = React.lazy(() => import("../pages/fraud/FraudDashboard"));
-const FraudRuleList = React.lazy(() => import("../pages/fraud/FraudRuleList"));
-const FraudRuleEditor = React.lazy(() => import("../pages/fraud/FraudRuleEditor"));
-const FraudCaseList = React.lazy(() => import("../pages/fraud/FraudCaseList"));
-const FraudCaseDetails = React.lazy(() => import("../pages/fraud/FraudCaseDetails"));
-const FraudAlerts = React.lazy(() => import("../pages/fraud/FraudAlerts"));
+// Reconciliation
+import ReconciliationDashboard from "../pages/reconciliation/ReconciliationDashboard";
 
-// system
-const DLQList = React.lazy(() => import("../pages/system/DLQList"));
-const OutboxList = React.lazy(() => import("../pages/system/OutboxList"));
-const Health = React.lazy(() => import("../pages/system/Health"));
-const Config = React.lazy(() => import("../pages/system/Config"));
+// Fraud
+import FraudDashboard from "../pages/fraud/FraudDashboard";
+import FraudRuleList from "../pages/fraud/FraudRuleList";
+import FraudRuleEditor from "../pages/fraud/FraudRuleEditor";
+import FraudCaseList from "../pages/fraud/FraudCaseList";
+import FraudCaseDetails from "../pages/fraud/FraudCaseDetails";
 
-// users
-const UserList = React.lazy(() => import("../pages/users/UserList"));
-const UserDetails = React.lazy(() => import("../pages/users/UserDetails"));
-const UserTrips = React.lazy(() => import("../pages/users/UserTrips"));
+// System
+import DLQList from "../pages/system/DLQList";
+import OutboxList from "../pages/system/OutboxList";
+import Health from "../pages/system/Health";
+import Config from "../pages/system/Config";
 
-export const lazyRoutes = [
-  // dashboard
-  { path: "", element: <Dashboard /> },
+// Users
+import UserList from "../pages/users/UserList";
+import UserDetails from "../pages/users/UserDetails";
+import UserTrips from "../pages/users/UserTrips";
 
-  // TRIPS
-  { path: "trips", element: <TripList /> },
-  { path: "trips/:id", element: <TripInspector /> },
+// Bookings
+import BookingList from "../pages/bookings/BookingList";
+import BookingDetails from "../pages/bookings/BookingDetails";
 
-  // DRIVERS
-  { path: "drivers", element: <DriversList /> },
-  { path: "drivers/:id", element: <DriverProfile /> },
-  { path: "drivers/:id/payouts", element: <DriverPayouts /> },
-  { path: "drivers/:id/trips", element: <DriverTrips /> },
+// Notifications
+import NotificationList from "../pages/notifications/NotificationList";
 
-  // REFUNDS
-  { path: "refunds", element: <RefundList /> },
-  { path: "refunds/:id", element: <RefundDetails /> },
+// Settings
+import Settings from "../pages/settings/Settings";
 
-  // PAYOUTS
-  { path: "payouts", element: <PayoutList /> },
-  { path: "payout-batches", element: <PayoutBatchList /> },
-  { path: "payout-batches/:id", element: <PayoutBatchDetails /> },
-  { path: "ledger", element: <LedgerViewer /> },
+const router = createBrowserRouter([
+  // -----------------------------
+  // PUBLIC ROUTES
+  // -----------------------------
+  { path: "/login", element: <Login /> },
 
-  // RECONCILIATION
-  { path: "reconciliation", element: <ReconciliationDashboard /> },
-  { path: "reconciliation/mpesa", element: <MpesaReconciliation /> },
-  { path: "reconciliation/stripe", element: <StripeReconciliation /> },
-  { path: "reconciliation/settlement-mismatch", element: <SettlementMismatchList /> },
+  // -----------------------------
+  // ADMIN ROUTES
+  // -----------------------------
+  {
+    path: "/admin",
+    element: (
+      <ProtectedRoute>
+        <AdminLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <Dashboard /> },
 
-  // FRAUD
-  { path: "fraud", element: <FraudDashboard /> },
-  { path: "fraud/rules", element: <FraudRuleList /> },
-  { path: "fraud/rules/:id", element: <FraudRuleEditor /> },
-  { path: "fraud/cases", element: <FraudCaseList /> },
-  { path: "fraud/cases/:id", element: <FraudCaseDetails /> },
-  { path: "fraud/alerts", element: <FraudAlerts /> },
+      // Trips
+      { path: "trips", element: <TripList /> },
+      { path: "trips/:id", element: <TripInspector /> },
 
-  // SYSTEM
-  { path: "system/dlq", element: <DLQList /> },
-  { path: "system/outbox", element: <OutboxList /> },
-  { path: "system/health", element: <Health /> },
-  { path: "system/config", element: <Config /> },
+      // Drivers
+      { path: "drivers", element: <DriversList /> },
+      { path: "drivers/:id", element: <DriverProfile /> },
 
-  // USERS
-  { path: "users", element: <UserList /> },
-  { path: "users/:id", element: <UserDetails /> },
-  { path: "users/:id/trips", element: <UserTrips /> },
-];
+      // Refunds
+      { path: "refunds", element: <RefundList /> },
+      { path: "refunds/:id", element: <RefundDetails /> },
 
-// 👉 export alias for compatibility
-export const routes = lazyRoutes;
+      // Payouts
+      { path: "payouts", element: <PayoutList /> },
+      { path: "payouts/batches", element: <PayoutBatchList /> },
+      { path: "payouts/batches/:batchId", element: <PayoutBatchDetails /> },
+
+      // Reconciliation
+      { path: "reconciliation", element: <ReconciliationDashboard /> },
+
+      // Fraud
+      { path: "fraud", element: <FraudDashboard /> },
+      { path: "fraud/rules", element: <FraudRuleList /> },
+      { path: "fraud/rules/:id", element: <FraudRuleEditor /> },
+      { path: "fraud/cases", element: <FraudCaseList /> },
+      { path: "fraud/cases/:id", element: <FraudCaseDetails /> },
+
+      // System
+      { path: "system/dlq", element: <DLQList /> },
+      { path: "system/outbox", element: <OutboxList /> },
+      { path: "system/health", element: <Health /> },
+      { path: "system/config", element: <Config /> },
+
+      // Users
+      { path: "users", element: <UserList /> },
+      { path: "users/:id", element: <UserDetails /> },
+      { path: "users/:id/trips", element: <UserTrips /> },
+
+      // Bookings
+      { path: "bookings", element: <BookingList /> },
+      { path: "bookings/:id", element: <BookingDetails /> },
+
+      // Notifications
+      { path: "notifications", element: <NotificationList /> },
+
+      // Settings
+      { path: "settings", element: <Settings /> },
+    ],
+  },
+
+  // -----------------------------
+  // FALLBACK
+  // -----------------------------
+  {
+    path: "*",
+    element: (
+      <div className="p-6 text-center text-2xl font-semibold">
+        404 — Page Not Found
+      </div>
+    ),
+  },
+]);
+
+// Export wrapper so main.tsx can use <AdminRouter />
+export function AdminRouter() {
+  return <RouterProvider router={router} />;
+}

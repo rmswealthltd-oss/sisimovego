@@ -1,32 +1,27 @@
-import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { routes } from "./routes";
+import { Navigate, useLocation } from "react-router-dom";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // While checking token/user → show a centered loader
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Checking session...
+      <div className="p-8 text-center text-lg font-medium">
+        Checking authentication...
       </div>
     );
   }
 
-  // If not authenticated → redirect to login
   if (!user) {
     return (
       <Navigate
-        to={routes.login}
+        to="/login"
         replace
-        state={{ from: location }} // preserve original path
+        state={{ from: location }}   // ← Make login redirect back
       />
     );
   }
 
-  // Authenticated → render child route
-  return <>{children}</>;
+  return children;
 }

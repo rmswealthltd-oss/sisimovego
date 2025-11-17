@@ -40,7 +40,7 @@ export async function sendOutboxRow(row: any) {
   try {
     await handleOutboxRow(row);
     // mark SENT
-    await prisma.outbox.update({
+    await prisma.outboxEvent.update({
       where: { id: row.id },
       data: { status: "SENT", updatedAt: new Date() }
     });
@@ -57,14 +57,14 @@ export async function sendOutboxRow(row: any) {
         error: String(err?.message ?? err)
       });
       // mark outbox as FAILED
-      await prisma.outbox.update({
+      await prisma.outboxEvent.update({
         where: { id: row.id },
         data: { status: "FAILED", attempts, lastError: String(err?.message ?? err) }
       });
       return false;
     } else {
       // increment attempts and record lastError
-      await prisma.outbox.update({
+      await prisma.outboxEvent.update({
         where: { id: row.id },
         data: { attempts, lastError: String(err?.message ?? err) }
       });

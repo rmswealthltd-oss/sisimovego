@@ -1,24 +1,13 @@
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Api } from "../lib/api";
+import { useAuthContext } from "../context/AuthContext";
 
-/**
- * Hook: returns the auth context value.
- */
 export function useAuth() {
-  return useContext(AuthContext);
-}
+  const { user, login, logout, loading } = useAuthContext();
 
-/**
- * loginRequest
- * Calls your API login route and returns `{ token, user }` or error.
- */
-export function loginRequest({
-  email,
-  password,
-}: {
-  email: string;
-  password: string;
-}) {
-  return Api.post("/auth/login", { email, password });
+  return {
+    user,
+    login,
+    logout,
+    loading,
+    isAuthenticated: !!user,
+  };
 }
