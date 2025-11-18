@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ReactNode } from "react";
 import { Inter } from "next/font/google";
 
@@ -9,16 +9,22 @@ import BottomNav from "@/components/BottomNav";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 
-// Load Google Font
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
 });
 
-// ========================================================
-//                 METADATA (SEO + PWA)
-// ========================================================
+/* ========================================================
+   FIXED — themeColor moved out of metadata
+======================================================== */
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+};
+
+/* ========================================================
+   METADATA (valid + warning-free)
+======================================================== */
 export const metadata: Metadata = {
   metadataBase: new URL("https://sisimove.com"),
 
@@ -35,8 +41,6 @@ export const metadata: Metadata = {
     icon: ["/icons/icon-192.png"],
     apple: ["/icons/icon-192.png"],
   },
-
-  themeColor: "#2563eb",
 
   openGraph: {
     title: "SisiMove — Africa’s Best Ridesharing App",
@@ -62,9 +66,9 @@ export const metadata: Metadata = {
   },
 };
 
-// ========================================================
-//                         LAYOUT
-// ========================================================
+/* ========================================================
+   ROOT LAYOUT
+======================================================== */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -74,7 +78,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           content="width=device-width, initial-scale=1, maximum-scale=1"
         />
 
-        {/* Modern PWA tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
@@ -90,7 +93,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <BottomNav />
             </div>
 
-            {/* Service Worker registration */}
             <script
               dangerouslySetInnerHTML={{
                 __html: `

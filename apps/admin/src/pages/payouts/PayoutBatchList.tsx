@@ -34,7 +34,7 @@ export default function PayoutBatchList() {
     try {
       await Api.post(`/admin/payouts/${id}/approve`);
       load();
-    } catch (e) {
+    } catch {
       alert("Error approving payout");
     }
   }
@@ -44,7 +44,7 @@ export default function PayoutBatchList() {
     try {
       await Api.post(`/admin/payouts/${id}/reject`);
       load();
-    } catch (e) {
+    } catch {
       alert("Error rejecting payout");
     }
   }
@@ -75,16 +75,23 @@ export default function PayoutBatchList() {
         <Table
           columns={[
             {
-              key: "id",
+              id: "id",
+              accessor: "id",
               title: "Batch ID",
               render: (b) => (
                 <Link to={`/admin/payouts/details?id=${b.id}`}>#{b.id}</Link>
               ),
             },
-            { key: "totalAmount", title: "Amount", render: (b) => `KSh ${b.totalAmount}` },
-            { key: "itemsCount", title: "Items" },
             {
-              key: "status",
+              id: "amount",
+              accessor: "totalAmount",
+              title: "Amount",
+              render: (b) => `KSh ${b.totalAmount}`,
+            },
+            { id: "items", accessor: "itemsCount", title: "Items" },
+            {
+              id: "status",
+              accessor: "status",
               title: "Status",
               render: (b) => (
                 <span
@@ -101,15 +108,33 @@ export default function PayoutBatchList() {
               ),
             },
             {
-              key: "createdAt",
+              id: "createdAt",
+              accessor: "createdAt",
               title: "Created",
-              render: (b) =>
-                new Date(b.createdAt).toLocaleString(),
+              render: (b) => new Date(b.createdAt).toLocaleString(),
             },
             {
-              key: "actions",
+              id: "actions",
               title: "Actions",
               render: (b) => (
                 <div className="flex gap-2">
                   <Link
-                    to=
+                    to={`/admin/payouts/details?id=${b.id}`}
+                    className="text-blue-600"
+                  >
+                    View
+                  </Link>
+                </div>
+              ),
+            },
+          ]}
+          data={batches}
+          loading={loading}
+          total={batches.length}
+          page={1}
+          pageSize={100}
+        />
+      )}
+    </div>
+  );
+}

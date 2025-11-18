@@ -10,6 +10,10 @@ export default function PayoutBatches() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Table v2 required
+  const page = 1;
+  const pageSize = 1000;
+
   useEffect(() => {
     load();
   }, []);
@@ -38,20 +42,65 @@ export default function PayoutBatches() {
       <PageTitle>Payout Batches</PageTitle>
 
       <div className="mb-4 flex gap-2">
-        <button onClick={createBatch} className="px-3 py-2 bg-blue-600 text-white rounded">Create batch</button>
-        <button onClick={() => navigate("/admin/payouts")} className="px-3 py-2 border rounded">Back to payouts</button>
+        <button onClick={createBatch} className="px-3 py-2 bg-blue-600 text-white rounded">
+          Create batch
+        </button>
+        <button onClick={() => navigate("/admin/payouts")} className="px-3 py-2 border rounded">
+          Back to payouts
+        </button>
       </div>
 
       {loading ? (
         <Loading />
       ) : (
-        <Table
+        <Table<any>
           data={batches}
+          loading={loading}
+          total={batches.length}
+          page={page}
+          pageSize={pageSize}
           columns={[
-            { key: "id", title: "Batch ID", render: (b) => <Link to={`/admin/payouts/batches/${b.id}`}>#{b.id}</Link> },
-            { key: "totalCents", title: "Total (KES)", render: (b) => (b.totalCents / 100).toLocaleString() },
-            { key: "createdAt", title: "Created", render: (b) => new Date(b.createdAt).toLocaleString() },
-            { key: "actions", title: "", render: (b) => <Link to={`/admin/payouts/batches/${b.id}`} className="text-blue-600 hover:underline">View</Link> },
+            {
+              id: "col-id",
+              accessor: "id",
+              title: "Batch ID",
+              render: (row) => (
+                <Link to={`/admin/payouts/batches/${row.id}`}>#{row.id}</Link>
+              ),
+            },
+
+            {
+              id: "col-total",
+              accessor: "totalCents",
+              title: "Total (KES)",
+              render: (row) =>
+                row.totalCents != null
+                  ? (row.totalCents / 100).toLocaleString()
+                  : "—",
+            },
+
+            {
+              id: "col-created",
+              accessor: "createdAt",
+              title: "Created",
+              render: (row) =>
+                row.createdAt
+                  ? new Date(row.createdAt).toLocaleString()
+                  : "—",
+            },
+
+            {
+              id: "col-view",
+              title: "",
+              render: (row) => (
+                <Link
+                  to={`/admin/payouts/batches/${row.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  View
+                </Link>
+              ),
+            },
           ]}
         />
       )}

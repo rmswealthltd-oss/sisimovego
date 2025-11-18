@@ -1,7 +1,18 @@
 import { useState } from "react";
 import axios from "@/lib/axios";
 
-export default function EditUserModal({ user, onClose, onSaved }) {
+interface EditUserModalProps {
+  user: {
+    id: number | string;
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+export default function EditUserModal({ user, onClose, onSaved }: EditUserModalProps) {
   const [name, setName] = useState(user.name ?? "");
   const [email, setEmail] = useState(user.email ?? "");
   const [phone, setPhone] = useState(user.phone ?? "");

@@ -1,5 +1,7 @@
+// src/routes/routes.tsx
+
 import React from "react";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./ProtectedRoute";
 import AdminLayout from "../layouts/AdminLayout";
@@ -52,19 +54,26 @@ import BookingDetails from "../pages/bookings/BookingDetails";
 
 // Notifications
 import NotificationList from "../pages/notifications/NotificationList";
+import SendNotification from "../pages/notifications/SendNotification";
 
-// Settings
-import Settings from "../pages/settings/Settings";
+// ---------------------------------------------------------
+// SETTINGS (Correct folder path: apps/admin/src/pages/settings/)
+// ---------------------------------------------------------
+import SettingsPage from "../pages/settings/SettingsPage";
+import GeneralSettings from "../pages/settings/components/GeneralSettings";
+import LocationSettings from "../pages/settings/components/LocationSettings";
+import PriceSettings from "../pages/settings/components/PriceSettings";
+import PlatformFeeSettings from "../pages/settings/components/PlatformFeeSettings";
+import VerificationSettings from "../pages/settings/components/VerificationSettings";
+import AdminAccountSettings from "../pages/settings/components/AdminAccountSettings";
 
-const router = createBrowserRouter([
-  // -----------------------------
-  // PUBLIC ROUTES
-  // -----------------------------
+// ---------------------------------------------------------
+// ROUTER
+// ---------------------------------------------------------
+export const router = createBrowserRouter([
+  { path: "/", element: <Navigate to="/login" replace /> },
   { path: "/login", element: <Login /> },
 
-  // -----------------------------
-  // ADMIN ROUTES
-  // -----------------------------
   {
     path: "/admin",
     element: (
@@ -119,15 +128,27 @@ const router = createBrowserRouter([
 
       // Notifications
       { path: "notifications", element: <NotificationList /> },
+      { path: "notifications/send", element: <SendNotification /> },
 
-      // Settings
-      { path: "settings", element: <Settings /> },
+      // ---------------------------------------------------------
+      // SETTINGS (FULLY FIXED & WORKING)
+      // ---------------------------------------------------------
+      {
+        path: "settings",
+        element: <SettingsPage />, // <Outlet /> inside will render children
+        children: [
+          { index: true, element: <GeneralSettings /> },
+          { path: "general", element: <GeneralSettings /> },
+          { path: "locations", element: <LocationSettings /> },
+          { path: "pricing", element: <PriceSettings /> },
+          { path: "fees", element: <PlatformFeeSettings /> },
+          { path: "verification", element: <VerificationSettings /> },
+          { path: "account", element: <AdminAccountSettings /> },
+        ],
+      },
     ],
   },
 
-  // -----------------------------
-  // FALLBACK
-  // -----------------------------
   {
     path: "*",
     element: (
@@ -138,7 +159,6 @@ const router = createBrowserRouter([
   },
 ]);
 
-// Export wrapper so main.tsx can use <AdminRouter />
 export function AdminRouter() {
   return <RouterProvider router={router} />;
 }

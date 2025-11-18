@@ -51,9 +51,10 @@ model Driver {
   verified Boolean @default(false)
   rating   Float?  @default(5.0)
 
-  vehicle Vehicle?
-  trips   Trip[]
-  payouts Payout[]
+  vehicle     Vehicle?
+  trips       Trip[]
+  payouts     Payout[]
+  LedgerEntry LedgerEntry[]
 }
 
 model Vehicle {
@@ -63,7 +64,7 @@ model Vehicle {
 
   make  String
   model String
-  plate String @unique
+  plate String  @unique
   color String?
 }
 
@@ -87,7 +88,7 @@ model Trip {
   availableSeats Int
   status         TripStatus @default(PENDING)
   departureAt    DateTime
-  createdAt      DateTime @default(now())
+  createdAt      DateTime   @default(now())
 
   bookings Booking[]
 }
@@ -113,8 +114,8 @@ model Booking {
   status     BookingStatus @default(PENDING)
   createdAt  DateTime      @default(now())
 
-  trip    Trip @relation(fields: [tripId], references: [id])
-  user    User @relation(fields: [userId], references: [id])
+  trip    Trip     @relation(fields: [tripId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
   payment Payment?
   refund  Refund?
 }
@@ -207,16 +208,21 @@ model FraudEvent {
 // ======================================================================
 
 model Payout {
-  id           String   @id @default(uuid())
-  driverId     String
-  amountCents  Int
-  batchId      String?
-  providerTxId String?
-  status       String   @default("PENDING")
-  createdAt    DateTime @default(now())
+  id       String  @id @default(uuid())
+  driverId String
+  batchId  String?
+  amount   Int
+  status   String // PENDING | APPROVED | REJECTED | FAILED | PAID
 
-  driver Driver       @relation(fields: [driverId], references: [id])
-  batch  PayoutBatch? @relation(fields: [batchId], references: [id])
+  approvedAt DateTime? @db.Timestamptz
+  rejectedAt DateTime? @db.Timestamptz
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver        Driver        @relation(fields: [driverId], references: [id])
+  batch         PayoutBatch?  @relation(fields: [batchId], references: [id])
+  ledgerEntries LedgerEntry[]
 }
 
 model PayoutBatch {
@@ -227,13 +233,26 @@ model PayoutBatch {
   payouts Payout[]
 }
 
-model Ledger {
-  id          String   @id @default(uuid())
-  bookingId   String?
-  amountCents Int
-  type        String
-  description String?
-  createdAt   DateTime @default(now())
+model LedgerEntry {
+  id        String     @id @default(uuid())
+  payoutId  String?
+  driverId  String
+  amount    Int
+  type      LedgerType
+  reference String?
+  note      String?
+
+  createdAt DateTime @default(now())
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  payout    Payout?  @relation(fields: [payoutId], references: [id])
+}
+
+enum LedgerType {
+  PAYOUT
+  TRIP_EARNING
+  PROMO
+  REFUND_DEBIT
+  ADJUSTMENT
 }
 
 // ======================================================================
@@ -287,10 +306,10 @@ model CronState {
 }
 
 model SystemSetting {
-  key        String   @id
-  value      String
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 // ======================================================================

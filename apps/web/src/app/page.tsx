@@ -1,12 +1,9 @@
-// apps/web/src/app/page.tsx
-
 import dynamic from "next/dynamic";
-import HeroBanner from "@/components/HeroBanner";
 import { apiGet } from "@/lib/serverApi";
 import { ENDPOINTS } from "@/constants/endpoints";
 import { buildMeta } from "@/lib/seo";
 
-// Client-only components
+// Client-side components
 const HeroSearch = dynamic(() => import("@/components/HeroSearch"), { ssr: false });
 const TripCard = dynamic(() => import("@/components/TripCard"), { ssr: false });
 
@@ -16,14 +13,12 @@ export const metadata = buildMeta({
 });
 
 export default async function HomePage() {
-  // Attempt API fetch for "featured trips"
   let featured: any[] = [];
 
   try {
     const res = await apiGet(ENDPOINTS.TRIPS_SEARCH + "?featured=true");
     featured = res?.trips ?? [];
   } catch {
-    // --- Fallback static featured routes ---
     featured = [
       { id: "f1", origin: "Nairobi", destination: "Mombasa", fareCents: 3500, seatsAvailable: 6, operatorName: "SisiMove Express" },
       { id: "f2", origin: "Nairobi", destination: "Nakuru", fareCents: 1500, seatsAvailable: 4, operatorName: "SisiMove Local" },
@@ -34,38 +29,70 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50">
 
-      {/* HERO SECTION */}
-      <section className="px-4 md:px-8 pt-10 pb-20">
-        <div className="max-w-5xl mx-auto space-y-10">
-          <HeroBanner />
-          <HeroSearch />
+      {/* HERO */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-sky-700 opacity-95"></div>
+        <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-white/10 rounded-full blur-3xl"></div>
+
+        <div className="relative max-w-6xl mx-auto px-6 py-24 text-white">
+          <div className="max-w-3xl space-y-6">
+            <h1 className="text-4xl md:text-6xl leading-tight font-bold">
+              Move smarter across Africa.
+            </h1>
+
+            <p className="text-lg md:text-xl text-blue-100">
+              Fast, safe and affordable intercity rides. Book in seconds, travel stress-free.
+            </p>
+
+            <div className="pt-6">
+              <HeroSearch />
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {[
+              ["10,000+", "Monthly riders"],
+              ["4.9/5", "Safety rating"],
+              ["500+", "Verified drivers"],
+              ["50+", "Cities served"],
+            ].map(([big, small]) => (
+              <div key={big}>
+                <p className="text-2xl font-semibold">{big}</p>
+                <p className="text-xs text-blue-200">{small}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* FEATURED TRIPS */}
-      <section className="max-w-5xl mx-auto px-4 md:px-0 pb-16">
-        <h2 className="text-2xl font-semibold mb-6">Featured Trips</h2>
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-semibold mb-8">Featured Trips</h2>
 
         {featured.length === 0 ? (
-          <p className="text-gray-500">No featured trips right now.</p>
+          <p className="text-gray-600">No featured trips right now.</p>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {featured.map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
+              <div className="hover:scale-[1.02] transition" key={trip.id}>
+                <TripCard trip={trip} />
+              </div>
             ))}
           </div>
         )}
       </section>
 
       {/* POPULAR CITIES */}
-      <section className="bg-white py-16 border-y">
-        <div className="max-w-5xl mx-auto px-4 md:px-0">
-          <h2 className="text-2xl font-semibold mb-6">Popular cities</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <section className="bg-white py-20 border-y">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-3xl font-semibold mb-8">Popular Cities</h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {["Nairobi", "Mombasa", "Kisumu", "Nakuru"].map((city) => (
               <div
                 key={city}
-                className="p-4 rounded-xl border bg-gray-50 hover:bg-gray-100 cursor-pointer transition"
+                className="p-6 rounded-xl border bg-gray-50 hover:bg-gray-100 shadow-sm transition cursor-pointer text-center font-medium"
               >
                 {city}
               </div>
@@ -75,46 +102,41 @@ export default async function HomePage() {
       </section>
 
       {/* WHY SISIMOVE */}
-      <section className="py-16">
-        <div className="max-w-5xl mx-auto px-4 md:px-0">
-          <h2 className="text-2xl font-semibold mb-10">Why ride with Sisimove?</h2>
+      <section className="py-24">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-3xl font-semibold mb-12 text-center">
+            Why ride with SisiMove?
+          </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-xl border bg-white shadow-sm">
-              <h3 className="text-lg font-medium mb-2">Reliable Drivers</h3>
-              <p className="text-sm text-gray-600">
-                All drivers are trained and verified to ensure safe trips.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-xl border bg-white shadow-sm">
-              <h3 className="text-lg font-medium mb-2">Affordable Rides</h3>
-              <p className="text-sm text-gray-600">
-                Transparent pricing with no hidden charges.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-xl border bg-white shadow-sm">
-              <h3 className="text-lg font-medium mb-2">Fast Booking</h3>
-              <p className="text-sm text-gray-600">
-                Book a ride in seconds and get real-time trip updates.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              ["Reliable Drivers", "All drivers are trained and verified for safe trips."],
+              ["Affordable Rides", "Transparent pricing with no hidden fees."],
+              ["Fast Booking", "Book in seconds and get live trip tracking."],
+            ].map(([title, desc]) => (
+              <div
+                key={title}
+                className="p-8 rounded-xl bg-white border shadow-sm hover:shadow-lg transition"
+              >
+                <h3 className="text-xl font-semibold mb-2">{title}</h3>
+                <p className="text-sm text-gray-600">{desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="bg-gradient-to-r from-primary to-sky-600 text-white py-16 mt-10">
-        <div className="max-w-5xl mx-auto px-4 text-center space-y-4">
-          <h2 className="text-2xl font-semibold">Ready to move?</h2>
-          <p className="text-sm text-blue-50">
-            Join thousands of passengers using Sisimove every day.
+      <section className="bg-gradient-to-r from-primary to-sky-600 text-white py-20">
+        <div className="max-w-6xl mx-auto px-6 text-center space-y-6">
+          <h2 className="text-3xl font-semibold">Ready to move?</h2>
+          <p className="text-blue-100">
+            Join thousands of passengers using SisiMove every day.
           </p>
 
           <a
             href="/signup"
-            className="inline-block bg-white text-primary font-medium px-6 py-3 rounded-lg shadow"
+            className="inline-block bg-white text-primary font-medium px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition text-lg"
           >
             Create your account
           </a>

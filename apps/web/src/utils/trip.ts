@@ -1,6 +1,5 @@
 // apps/web/src/utils/trip.ts
 
-import { format } from "date-fns";
 import { TripView } from "@/types/trip";
 import { TripStatusLabels, TripStatusColors } from "@/constants/tripStatus";
 import { moneyFromCents } from "@/lib/money";
@@ -23,12 +22,31 @@ export function safeDate(input: any): Date | null {
   }
 }
 
+/**
+ * Native pattern-based formatter:
+ * Supports limited patterns you actually use:
+ * - "HH:mm"
+ * - "dd MMM yyyy, HH:mm"
+ */
 export function formatDate(input: any, pattern: string, fallback = "—") {
   const d = safeDate(input);
   if (!d) return fallback;
 
   try {
-    return format(d, pattern);
+    const parts = {
+      HH: String(d.getHours()).padStart(2, "0"),
+      mm: String(d.getMinutes()).padStart(2, "0"),
+      dd: String(d.getDate()).padStart(2, "0"),
+      MMM: d.toLocaleString("en-US", { month: "short" }),
+      yyyy: d.getFullYear(),
+    };
+
+    return pattern
+      .replace("dd", parts.dd)
+      .replace("MMM", parts.MMM)
+      .replace("yyyy", String(parts.yyyy))
+      .replace("HH", parts.HH)
+      .replace("mm", parts.mm);
   } catch {
     return fallback;
   }

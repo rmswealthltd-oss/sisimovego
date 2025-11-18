@@ -1,4 +1,16 @@
-export default function ConfirmModal({ title, message, onCancel, onConfirm }) {
+interface ConfirmModalProps {
+  title: string;
+  message: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+export default function ConfirmModal({
+  title,
+  message,
+  onCancel,
+  onConfirm,
+}: ConfirmModalProps) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
       <div className="bg-white rounded shadow-lg p-6 w-96">

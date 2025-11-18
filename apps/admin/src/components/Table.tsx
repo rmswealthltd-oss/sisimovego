@@ -1,67 +1,131 @@
 import React from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
-interface Column {
-  label: string;
-  accessor: string;
-  render?: (value: any, row: any) => React.ReactNode;
-  width?: string;
-  className?: string;
-}
+export type Column<T> = {
+  /** Internal key to help React render */
+  id: string;
 
-interface TableProps {
-  columns: Column[];
-  data: any[];
-  onRowClick?: (row: any) => void;
-}
+  /** Field from the model, or virtual column */
+  accessor?: keyof T | string;
 
-export default function Table({ columns, data, onRowClick }: TableProps) {
+  /** Column title */
+  title: string;
+
+  /** Sort toggle */
+  sortable?: boolean;
+
+  /** Custom cell renderer */
+  render?: (row: T) => React.ReactNode;
+};
+
+type Props<T> = {
+  data: T[];
+  columns: Column<T>[];
+  loading?: boolean;
+
+  total: number;
+  page: number;
+  pageSize: number;
+
+  onPageChange?: (page: number) => void;
+
+  onSortChange?: (opts: {
+    accessor: string;
+    direction: "asc" | "desc";
+  }) => void;
+
+  sort?: string;
+  dir?: "asc" | "desc";
+};
+
+export default function Table<T>({
+  data,
+  columns,
+  loading = false,
+
+  total,
+  page,
+  pageSize,
+
+  onPageChange,
+  onSortChange,
+  sort,
+  dir = "asc",
+}: Props<T>) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  function toggleSort(col: Column<T>) {
+    if (!onSortChange || !col.sortable || !col.accessor) return;
+
+    const newDir =
+      sort === col.accessor && dir === "asc" ? "desc" : "asc";
+
+    onSortChange({
+      accessor: col.accessor as string,
+      direction: newDir,
+    });
+  }
+
+  function getCell(row: T, col: Column<T>) {
+    if (col.render) return col.render(row);
+    if (!col.accessor) return "";
+
+    return (row as any)[col.accessor];
+  }
+
   return (
-    <div className="w-full overflow-x-auto">
-      <table className="min-w-full border border-gray-200 bg-white">
-        {/* HEADER */}
-        <thead className="bg-gray-50 border-b">
+    <div className="w-full border rounded-md overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-100">
           <tr>
-            {columns.map((col, idx) => (
-              <th
-                key={idx}
-                style={col.width ? { width: col.width } : undefined}
-                className={`px-4 py-2 text-sm font-semibold text-gray-700 border-r last:border-r-0 ${col.className || ""
+            {columns.map((col) => {
+              const active = sort === col.accessor;
+              const asc = active && dir === "asc";
+
+              return (
+                <th
+                  key={col.id}
+                  className={`px-3 py-2 whitespace-nowrap text-left ${
+                    col.sortable ? "cursor-pointer select-none" : ""
                   }`}
-              >
-                {col.label}
-              </th>
-            ))}
+                  onClick={() => toggleSort(col)}
+                >
+                  <div className="flex items-center gap-1">
+                    {col.title}
+
+                    {col.sortable && active && (
+                      asc ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )
+                    )}
+                  </div>
+                </th>
+              );
+            })}
           </tr>
         </thead>
 
-        {/* BODY */}
         <tbody>
-          {data.length === 0 ? (
+          {loading ? (
             <tr>
-              <td
-                colSpan={columns.length}
-                className="py-6 text-center text-gray-500"
-              >
-                No data found
+              <td colSpan={columns.length} className="p-4 text-center">
+                Loading...
+              </td>
+            </tr>
+          ) : data.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="p-4 text-center">
+                No data
               </td>
             </tr>
           ) : (
-            data.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className={`border-b hover:bg-gray-50 transition ${
-                  onRowClick ? "cursor-pointer" : ""
-                }`}
-                onClick={() => onRowClick?.(row)}
-              >
-                {columns.map((col, colIndex) => (
-                  <td
-                    key={colIndex}
-                    className="px-4 py-2 text-sm text-gray-700 border-r last:border-r-0"
-                  >
-                    {col.render
-                      ? col.render(row[col.accessor], row)
-                      : row[col.accessor]}
+            data.map((row, i) => (
+              <tr key={i} className="border-t">
+                {columns.map((col) => (
+                  <td key={col.id} className="px-3 py-2">
+                    {getCell(row, col)}
                   </td>
                 ))}
               </tr>
@@ -69,6 +133,31 @@ export default function Table({ columns, data, onRowClick }: TableProps) {
           )}
         </tbody>
       </table>
+
+      {/* PAGINATION */}
+      <div className="flex justify-between items-center px-4 py-3 bg-gray-50">
+        <div className="text-sm">
+          Page {page} of {totalPages}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            disabled={page <= 1}
+            onClick={() => onPageChange?.(page - 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <button
+            disabled={page >= totalPages}
+            onClick={() => onPageChange?.(page + 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
