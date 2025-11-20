@@ -29,7 +29,8 @@ export function useTripRealtime(tripId?: string | null) {
     const buf = bufferRef.current;
 
     if (buf.loc) setDriverLocation(buf.loc);
-    if (buf.trip) setTrip(prev => ({ ...(prev || {}), ...buf.trip }));
+if (buf.trip)
+  setTrip((prev: any | null) => ({ ...(prev || {}), ...buf.trip }));
     if (buf.status !== undefined) setStatus(buf.status);
 
     bufferRef.current = {};

@@ -1,6 +1,8 @@
 // apps/web/src/app/auth/register/_RegisterForm.tsx
 "use client";
-import { useState } from "react";
+import React from "react";
+
+import { useState,} from "react";
 import { Api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 

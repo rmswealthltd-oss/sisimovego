@@ -1,4 +1,3 @@
-// apps/web/src/app/payments/checkout/_CheckoutClient.tsx
 "use client";
 import React, { useState } from "react";
 import { Api } from "@/lib/api";
@@ -19,8 +18,11 @@ export default function CheckoutClient({ booking }: { booking: any }) {
         if (res.redirectUrl) window.location.href = res.redirectUrl;
         else router.push(`/payments/stripe?checkoutId=${res.checkoutId}`);
       }
-    } catch (e:any) { alert(e?.message || "Checkout failed"); }
-    finally { setLoading(false); }
+    } catch (e:any) {
+      alert(e?.message || "Checkout failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -29,11 +31,30 @@ export default function CheckoutClient({ booking }: { booking: any }) {
       <div className="text-lg font-semibold">KES {(booking.totalCents/100).toFixed(2)}</div>
 
       <div className="space-y-2">
-        <PaymentOption title="MPESA" description="STK Push" active={method==="mpesa"} onClick={()=>setMethod("mpesa")} />
-        <PaymentOption title="Stripe" description="Card / Apple Pay" active={method==="stripe"} onClick={()=>setMethod("stripe")} />
+        <PaymentOption
+          value="mpesa"
+          label="MPESA"
+          description="STK Push"
+          selected={method}
+          onSelect={setMethod}
+        />
+
+        <PaymentOption
+          value="stripe"
+          label="Stripe"
+          description="Card / Apple Pay"
+          selected={method}
+          onSelect={setMethod}
+        />
       </div>
 
-      <button disabled={loading} onClick={start} className="px-4 py-2 bg-primary text-white rounded">{loading?"Processing...":"Pay now"}</button>
+      <button
+        disabled={loading}
+        onClick={start}
+        className="px-4 py-2 bg-primary text-white rounded"
+      >
+        {loading ? "Processing..." : "Pay now"}
+      </button>
     </div>
   );
 }

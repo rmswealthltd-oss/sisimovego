@@ -1,36 +1,116 @@
-// apps/web/src/app/profile/edit/_EditInner.tsx
+// apps/web/src/context/AuthContext.tsx
 "use client";
-import { useState } from "react";
+
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { storage } from "@/lib/storage";
 import { Api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-export default function EditInner({ serverUser }: { serverUser: any }) {
-  const [form, setForm] = useState({ name: serverUser?.name ?? "", phone: serverUser?.phone ?? "" });
-  const [loading, setLoading] = useState(false);
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;           // ✅ add phone
+}
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (_token: string) => Promise<void>;
+  logout: () => void;
+  refreshUser: () => Promise<void>;
+}
+
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  login: async () => {},
+  logout: () => {},
+  refreshUser: async () => {},       // default
+});
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  async function save() {
-    setLoading(true);
+  /* ----------------------------------------
+     Restore user from stored token
+  ----------------------------------------- */
+  async function restoreUser() {
+    const token = storage.get("access");
+
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      await Api.post("/auth/me/update", form);
-      router.refresh();
-      alert("Saved");
-    } catch (e:any) {
-      alert(e?.message || "Save failed");
+      const u = await Api.get("/auth/me");
+      setUser(u);
+    } catch {
+      storage.remove("access");
+      setUser(null);
     } finally {
       setLoading(false);
     }
   }
 
+  useEffect(() => {
+    restoreUser();
+  }, []);
+
+  /* ----------------------------------------
+     Add refreshUser
+  ----------------------------------------- */
+  async function refreshUser() {
+    try {
+      const u = await Api.get("/auth/me");
+      setUser(u);
+    } catch (err) {
+      console.error("Failed to refresh user", err);
+    }
+  }
+
+  /* ----------------------------------------
+     Login
+  ----------------------------------------- */
+  async function login(token: string) {
+    storage.set("access", token);
+    await restoreUser();
+    router.push("/");
+  }
+
+  /* ----------------------------------------
+     Logout
+  ----------------------------------------- */
+  function logout() {
+    storage.remove("access");
+    setUser(null);
+    router.push("/auth/login");
+  }
+
   return (
-    <div className="bg-white p-4 rounded shadow mt-4 space-y-3">
-      <label className="text-sm">Full name</label>
-      <input value={form.name} onChange={(e)=>setForm({...form,name:e.target.value})} className="w-full border p-2 rounded"/>
-      <label className="text-sm">Phone</label>
-      <input value={form.phone} onChange={(e)=>setForm({...form,phone:e.target.value})} className="w-full border p-2 rounded"/>
-      <div className="pt-2">
-        <button disabled={loading} onClick={save} className="px-4 py-2 bg-primary text-white rounded">{loading? "Saving...":"Save"}</button>
-      </div>
-    </div>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        refreshUser,  // ✅ exposed
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
 }

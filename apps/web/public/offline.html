@@ -6,28 +6,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
-      background: #f8fafc;
+      background: #fdf6ec;
       font-family: system-ui, sans-serif;
       text-align: center;
       padding: 40px;
-      color: #0f172a;
+      color: #1e293b;
     }
     .card {
       background: white;
-      padding: 30px;
-      border-radius: 12px;
-      max-width: 400px;
+      padding: 40px 30px;
+      border-radius: 20px;
+      max-width: 420px;
       margin: 0 auto;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.05);
+      border: 1px solid #f1e8df;
     }
-    h1 { margin-bottom: 20px; }
+    h1 {
+      margin-bottom: 12px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #e67e22;
+    }
+    p {
+      color: #475569;
+      font-size: 1rem;
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+    .retry-btn {
+      margin-top: 20px;
+      display: inline-block;
+      background: #e67e22;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>You're Offline</h1>
-    <p>The network connection is unavailable.</p>
-    <p>Please reconnect to continue using SisiMove.</p>
+    <h1>No Internet Connection</h1>
+    <p>It looks like you're currently offline.</p>
+    <p>Please reconnect to keep using SisiMove.</p>
+
+    <a href="/" class="retry-btn">Retry</a>
   </div>
 </body>
 </html>

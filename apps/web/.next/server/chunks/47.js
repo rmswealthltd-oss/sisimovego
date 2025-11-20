@@ -1,0 +1,1 @@
+"use strict";exports.id=47,exports.ids=[47],exports.modules={47:(e,r,t)=>{t.r(r),t.d(r,{$$typeof:()=>i,__esModule:()=>p,default:()=>o});let s=(0,t(3610).createProxy)(String.raw`C:\Users\HP\sisimovego\apps\web\src\app\trip\[tripId]\realtime\ClientWrapper.tsx`),{__esModule:p,$$typeof:i}=s,o=s.default}};

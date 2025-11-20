@@ -3,19 +3,21 @@
 
 import React, { ReactNode, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function RequiresAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading } = useAuth();   // ✅ FIX
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (loading) return; // still checking
+    if (loading) return;
+
     if (!user) {
-      const redirectTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+      const redirectTo =
+        pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+
       router.replace(`/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`);
     }
   }, [user, loading, router, pathname, searchParams]);

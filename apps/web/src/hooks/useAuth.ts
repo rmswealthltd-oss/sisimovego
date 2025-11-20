@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { apiFetch } from "@/lib/api";
+import { Api } from "@/lib/api";
 import { storage } from "@/lib/storage";
 import { useRouter } from "next/navigation";
 import { User } from "@/lib/User";
@@ -10,23 +10,12 @@ interface UseAuthResult {
   user: User | null;
   loading: boolean;
   token: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (data: { name: string; email: string; password: string }) => Promise<boolean>;
+  login: (_email: string, _password: string) => Promise<boolean>;
+  register: (_data: { name: string; email: string; password: string }) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
 
-/**
- * Authentication Hook
- * -------------------
- * Handles:
- *  - login
- *  - logout
- *  - register
- *  - token storage
- *  - fetching user profile
- *  - sync with API + storage
- */
 export function useAuth(): UseAuthResult {
   const router = useRouter();
 
@@ -34,23 +23,20 @@ export function useAuth(): UseAuthResult {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /**
-   * Load token from LocalStorage on first mount
-   */
+  /* ------------------------------------------
+     Load token on mount
+  ------------------------------------------- */
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const stored = storage.get("token");
+    const stored = storage.get<string>("token");  // <-- FIXED
     if (stored) {
       setToken(stored);
     }
-
     setLoading(false);
   }, []);
 
-  /**
-   * Fetch profile when token changes
-   */
+  /* ------------------------------------------
+     Refresh user when token changes
+  ------------------------------------------- */
   useEffect(() => {
     if (!token) {
       setUser(null);
@@ -59,53 +45,40 @@ export function useAuth(): UseAuthResult {
     refreshUser();
   }, [token]);
 
-  /**
-   * Fetch authenticated user profile
-   */
+  /* ------------------------------------------
+     Fetch authenticated user
+  ------------------------------------------- */
   const refreshUser = useCallback(async () => {
     if (!token) return;
 
     try {
-      const res = await apiFetch("/auth/me", {
+      const data = await Api.get("/auth/me", {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-      } else {
-        // token invalid → logout
-        logout();
-      }
+      setUser(data);
     } catch (err) {
-      console.error("Failed to fetch profile:", err);
+      console.warn("Failed to refresh user:", err);
       logout();
     }
   }, [token]);
 
-  /**
-   * Login
-   */
-  const login = async (email: string, password: string): Promise<boolean> => {
+  /* ------------------------------------------
+     LOGIN
+  ------------------------------------------- */
+  const login = async (_email: string, _password: string): Promise<boolean> => {
     setLoading(true);
 
     try {
-      const res = await apiFetch("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password })
+      const data = await Api.post("/auth/login", {
+        email: _email,
+        password: _password
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setLoading(false);
-        return false;
-      }
 
       storage.set("token", data.token);
       setToken(data.token);
-
       router.push("/profile");
+
       return true;
     } catch (err) {
       console.error("Login error:", err);
@@ -115,9 +88,9 @@ export function useAuth(): UseAuthResult {
     }
   };
 
-  /**
-   * Register
-   */
+  /* ------------------------------------------
+     REGISTER
+  ------------------------------------------- */
   const register = async (body: {
     name: string;
     email: string;
@@ -126,22 +99,12 @@ export function useAuth(): UseAuthResult {
     setLoading(true);
 
     try {
-      const res = await apiFetch("/auth/register", {
-        method: "POST",
-        body: JSON.stringify(body)
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setLoading(false);
-        return false;
-      }
+      const data = await Api.post("/auth/register", body);
 
       storage.set("token", data.token);
       setToken(data.token);
-
       router.push("/profile");
+
       return true;
     } catch (err) {
       console.error("Registration error:", err);
@@ -151,9 +114,9 @@ export function useAuth(): UseAuthResult {
     }
   };
 
-  /**
-   * Logout
-   */
+  /* ------------------------------------------
+     LOGOUT
+  ------------------------------------------- */
   const logout = () => {
     storage.remove("token");
     setToken(null);

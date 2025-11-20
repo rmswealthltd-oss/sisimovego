@@ -2,13 +2,14 @@
 
 import { Check } from "lucide-react";
 import clsx from "clsx";
+import { Dispatch, SetStateAction } from "react";
 
 interface PaymentOptionProps {
-  value: string;
+  value: "mpesa" | "stripe";
   label: string;
   description?: string;
-  selected: string | null;
-  onSelect: (value: string) => void;
+  selected: "mpesa" | "stripe" | null;
+  onSelect: Dispatch<SetStateAction<"mpesa" | "stripe">>;
 }
 
 export default function PaymentOption({

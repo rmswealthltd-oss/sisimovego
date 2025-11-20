@@ -1,0 +1,1 @@
+"use strict";exports.id=602,exports.ids=[602],exports.modules={7602:(e,s,t)=>{t.r(s),t.d(s,{$$typeof:()=>r,__esModule:()=>i,default:()=>p});let o=(0,t(3610).createProxy)(String.raw`C:\Users\HP\sisimovego\apps\web\src\app\profile\notifications\_NotificationsInner.tsx`),{__esModule:i,$$typeof:r}=o,p=o.default}};

@@ -2,6 +2,11 @@
 
 import clsx from "clsx";
 
+// --------------------------------------
+// TYPES
+// --------------------------------------
+type BookingStatus = "PENDING" | "PAID" | "CANCELLED" | "REFUNDED";
+
 interface EventItem {
   type?: string;
   title?: string;
@@ -15,23 +20,25 @@ interface StepItem {
 }
 
 interface BookingTimelineProps {
-  /** event timeline coming from backend */
   events?: EventItem[];
-
-  /** step timeline for client-driven flows */
   steps?: StepItem[] | string[];
-
-  /** index of current step (0-based) */
   currentStep?: number;
+
+  /** booking status from backend */
+  status?: BookingStatus;
 }
 
+// --------------------------------------
+// COMPONENT
+// --------------------------------------
 export default function BookingTimeline({
   events,
   steps,
-  currentStep = 0
+  currentStep = 0,
+  status,
 }: BookingTimelineProps) {
   // ---------------------------------------------------------
-  // MODE 1: EVENT TIMELINE (from backend)
+  // MODE 1: EVENT TIMELINE (backend events)
   // ---------------------------------------------------------
   if (events && events.length > 0) {
     return (
@@ -42,24 +49,22 @@ export default function BookingTimeline({
 
           return (
             <li key={i} className="flex gap-3 items-start">
-              {/* dot */}
               <div className="w-3 h-3 rounded-full mt-1 bg-primary" />
 
               <div className="flex-1">
-                <div className="text-sm font-semibold capitalize">
-                  {title}
-                </div>
+                <div className="text-sm font-semibold capitalize">{title}</div>
+
                 {e.message || e.note ? (
                   <div className="text-xs text-gray-600">
                     {e.message ?? e.note}
                   </div>
                 ) : null}
+
                 {time && (
                   <div className="text-xs text-gray-400 mt-1">{time}</div>
                 )}
               </div>
 
-              {/* label for latest */}
               {i === 0 && (
                 <div className="text-xs text-gray-400 whitespace-nowrap">
                   Latest
@@ -73,14 +78,13 @@ export default function BookingTimeline({
   }
 
   // ---------------------------------------------------------
-  // MODE 2: STEP TIMELINE (static UI, e.g. checkout steps)
+  // MODE 2: STEP TIMELINE (custom static steps)
   // ---------------------------------------------------------
   if (steps && steps.length > 0) {
     return (
       <div className="space-y-4 bg-white p-4 rounded-xl shadow">
         {steps.map((step, i) => {
           const label = typeof step === "string" ? step : step.label;
-
           const active = i <= currentStep;
 
           return (
@@ -93,10 +97,48 @@ export default function BookingTimeline({
               >
                 {i + 1}
               </div>
+
               <div className={clsx(active && "font-semibold")}>{label}</div>
             </div>
           );
         })}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------
+  // MODE 3: BOOKING STATUS TIMELINE (your backend enum)
+  // ---------------------------------------------------------
+  if (status) {
+    const flow: BookingStatus[] = [
+      "PENDING",
+      "PAID",
+      "CANCELLED",
+      "REFUNDED",
+    ];
+
+    const currentIndex = flow.indexOf(status);
+
+    return (
+      <div className="space-y-4 bg-white p-4 rounded-xl shadow">
+        {flow.map((step, i) => (
+          <div key={step} className="flex items-center gap-3">
+            <div
+              className={clsx(
+                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
+                i <= currentIndex
+                  ? "bg-primary text-white"
+                  : "bg-gray-300 text-gray-700"
+              )}
+            >
+              {i + 1}
+            </div>
+
+            <div className={clsx(i <= currentIndex && "font-semibold")}>
+              {step.toLowerCase().replace(/_/g, " ")}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

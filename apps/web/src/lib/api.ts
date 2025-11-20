@@ -1,117 +1,95 @@
-// apps/web/src/lib/api.ts
 "use client";
 
-import { ENDPOINTS } from "./config";
+// -------------------------------------------------------------
+//  Production-Ready API Client for Next.js
+//  Uses Bearer token stored in localStorage
+// -------------------------------------------------------------
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001/api";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:5000";
 
-/* ----------------------- CSRF ----------------------- */
-function getCsrfTokenFromCookie(): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
+/* ---------------------------------------------------------
+   Helper: token accessor (browser only)
+---------------------------------------------------------- */
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
 }
 
-/* ---------------------- Refresh ---------------------- */
-async function refreshToken() {
-  const res = await fetch(`${API_BASE}/auth/refresh`, {
-    method: "POST",
-    credentials: "include"
-  });
-  if (!res.ok) throw new Error("Refresh failed");
-  return res.json();
-}
+/* ---------------------------------------------------------
+   Core request wrapper
+---------------------------------------------------------- */
+async function request(
+  method: string,
+  url: string,
+  body?: any,
+  options: { headers?: Record<string, string> } = {}
+) {
+  const token = getToken();
 
-/* -------------------- Core request -------------------- */
-// automatically handles:
-// - full URLs
-// - retries once on 401
-// - CSRF headers
-// - JSON parsing fallback to text
-async function request(path: string, opts: RequestInit = {}, retry = true): Promise<any> {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-
-  const headers = new Headers(opts.headers ?? {});
-  const csrf = getCsrfTokenFromCookie();
-  if (csrf) headers.set("x-csrf-token", csrf);
-
-  const finalOpts: RequestInit = {
-    credentials: "include",
-    ...opts,
-    headers
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
   };
 
-  const res = await fetch(url, finalOpts);
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  // Parse JSON safely
-  let text = "";
-  try {
-    text = await res.text();
-  } catch {}
+  const res = await fetch(`${BASE_URL}${url}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
-  let data: any;
+  let json: any = null;
   try {
-    data = text ? JSON.parse(text) : null;
+    json = await res.json();
   } catch {
-    data = text;
-  }
-
-  // retry on 401 once
-  if (res.status === 401 && retry) {
-    try {
-      await refreshToken();
-      return request(path, opts, false);
-    } catch {
-      /* continue to throw original 401 */
-    }
+    json = null;
   }
 
   if (!res.ok) {
-    const err: any = new Error(data?.message || res.statusText || "API error");
-    err.status = res.status;
-    err.data = data;
-    throw err;
+    const msg = json?.message || json?.error || res.statusText;
+    const error = new Error(msg);
+    (error as any).data = json;
+    (error as any).status = res.status;
+    throw error;
   }
 
-  return data;
+  return json;
 }
 
-/* ---------------------- Public API ---------------------- */
+/* ---------------------------------------------------------
+   Public API surface
+---------------------------------------------------------- */
 export const Api = {
-  request,
-
-  get(path: string) {
-    return request(path, { method: "GET" });
+  get(path: string, options: any = {}) {
+    return request("GET", path, undefined, options);
   },
 
-  post(path: string, body?: any) {
-    const isForm = body instanceof FormData;
-    return request(path, {
-      method: "POST",
-      body: isForm ? body : JSON.stringify(body),
-      headers: isForm ? undefined : { "Content-Type": "application/json" }
-    });
+  post(path: string, body?: any, options: any = {}) {
+    return request("POST", path, body, options);
   },
 
-  put(path: string, body?: any) {
-    return request(path, {
-      method: "PUT",
-      body: JSON.stringify(body),
-      headers: { "Content-Type": "application/json" }
-    });
+  put(path: string, body?: any, options: any = {}) {
+    return request("PUT", path, body, options);
   },
 
-  delete(path: string) {
-    return request(path, { method: "DELETE" });
+  patch(path: string, body?: any, options: any = {}) {
+    return request("PATCH", path, body, options);
   },
 
-  /* ------------------- Auth helpers ------------------- */
-  async getMe() {
+  delete(path: string, options: any = {}) {
+    return request("DELETE", path, undefined, options);
+  },
+
+  // ---------------- AUTH ----------------
+  getMe() {
     return this.get("/auth/me");
   },
 
-  /* ------------------- Booking helpers ------------------- */
-  async createBooking(payload: {
+  // ---------------- BOOKING ----------------
+  createBooking(payload: {
     tripId: string;
     seats: number;
     passengerInfo?: any;
@@ -120,38 +98,40 @@ export const Api = {
     return this.post("/bookings/create", payload);
   },
 
-  async getBooking(bookingId: string) {
-    return this.get(`/bookings/${encodeURIComponent(bookingId)}`);
+  getBooking(id: string) {
+    return this.get(`/bookings/${encodeURIComponent(id)}`);
   },
 
-  /* ------------------- Promo helpers ------------------- */
-  async applyPromo(payload: { code: string; tripId?: string; bookingId?: string }) {
+  // ---------------- PROMO ----------------
+  applyPromo(payload: { code: string; tripId?: string; bookingId?: string }) {
     return this.post("/promos/apply", payload);
   },
 
-  /* ------------------- Payment helpers ------------------- */
-  async createCheckout(payload: {
+  // ---------------- PAYMENTS ----------------
+  createCheckout(payload: {
     bookingId: string;
     method: "mpesa" | "stripe";
   }) {
     return this.post("/payments/checkout", payload);
   },
 
-  /* ------------------- Trips ------------------- */
-  async getTrip(id: string) {
+  // ---------------- TRIPS ----------------
+  getTrip(id: string) {
     return this.get(`/trips/${id}`);
   },
 
-  /* ---------------- Push Subscriptions ---------------- */
-  async saveSubscription(subscription: any) {
+  // ---------------- PUSH SUBSCRIPTIONS ----------------
+  saveSubscription(subscription: any) {
     return this.post("/push/subscribe", { subscription });
   },
 
-  async getSubscriptions() {
+  getSubscriptions() {
     return this.get("/push/subscriptions");
   },
 
-  async deleteSubscription(idOrEndpoint: string) {
-    return this.delete(`/push/subscriptions/${encodeURIComponent(idOrEndpoint)}`);
-  }
+  deleteSubscription(idOrEndpoint: string) {
+    return this.delete(
+      `/push/subscriptions/${encodeURIComponent(idOrEndpoint)}`
+    );
+  },
 };

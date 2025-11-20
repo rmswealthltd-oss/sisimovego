@@ -1,38 +1,61 @@
 "use client";
 
-import { useAuthContext } from "../../context/AuthContext";
-import Link from "next/link";
+import { useState } from "react";
+import { Api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
-export default function ProfileInner() {
-  const { user, logout } = useAuthContext();
+export default function EditProfileInner() {
+  const { user } = useAuth();
+  const [name, setName] = useState(user?.name ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [saving, setSaving] = useState(false);
 
-  if (!user) return null;
+  if (!user) return <div className="p-4">You must be logged in.</div>;
+
+  async function save() {
+    setSaving(true);
+
+    try {
+      await Api.patch("/profile/update", { name, email });
+      alert("Profile updated!");
+      // Optionally: redirect or reload
+      window.location.href = "/profile";
+    } catch (e: any) {
+      alert(e?.message || "Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold">My Profile</h1>
+      <h1 className="text-2xl font-bold">Edit Profile</h1>
 
-      <div className="bg-white shadow rounded p-4 space-y-3">
-        <div className="text-lg font-medium">{user.name}</div>
-        <div className="text-sm text-gray-500">{user.email}</div>
+      <div className="bg-white shadow rounded p-4 space-y-4">
+        <div>
+          <label className="block text-sm font-medium">Name</label>
+          <input
+            className="mt-1 w-full p-2 border rounded"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+        </div>
 
-        <div className="pt-4 border-t flex flex-col gap-2">
-          <Link href="/profile/edit" className="text-primary underline">
-            Edit profile
-          </Link>
-          <Link href="/profile/paymentMethods" className="text-primary underline">
-            Payment methods
-          </Link>
-          <Link href="/profile/notifications" className="text-primary underline">
-            Notifications
-          </Link>
+        <div>
+          <label className="block text-sm font-medium">Email</label>
+          <input
+            className="mt-1 w-full p-2 border rounded"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
         </div>
 
         <button
-          className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
-          onClick={logout}
+          onClick={save}
+          disabled={saving}
+          className="px-4 py-2 bg-primary text-white rounded"
         >
-          Log out
+          {saving ? "Saving..." : "Save changes"}
         </button>
       </div>
     </div>

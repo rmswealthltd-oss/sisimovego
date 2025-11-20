@@ -1,113 +1,65 @@
+/**
+ * GLOBAL ROOT LAYOUT — SisiMove
+ *
+ * Stable, hydration-safe, production-ready
+ */
+
 import "./globals.css";
-import type { Metadata, Viewport } from "next";
-import { ReactNode } from "react";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import ClientShell from "./ClientShell";
 
-import Navbar from "@/components/Navbar";
+import Header from "@/components/home/Header";
+import Footer from "@/components/home/Footer";
 import BottomNav from "@/components/BottomNav";
-
-import { ThemeProvider } from "@/context/ThemeContext";
-import { AuthProvider } from "@/context/AuthContext";
 
 const inter = Inter({
   subsets: ["latin"],
-  display: "swap",
   variable: "--font-inter",
+  display: "swap",
 });
 
-/* ========================================================
-   FIXED — themeColor moved out of metadata
-======================================================== */
-export const viewport: Viewport = {
-  themeColor: "#2563eb",
-};
-
-/* ========================================================
-   METADATA (valid + warning-free)
-======================================================== */
 export const metadata: Metadata = {
-  metadataBase: new URL("https://sisimove.com"),
-
-  title: {
-    default: "SisiMove — Africa’s Best Ridesharing App",
-    template: "%s — SisiMove",
-  },
-
-  description: "Fast, safe and affordable rides across Africa.",
-
-  manifest: "/manifest.webmanifest",
-
+  title: "SisiMove — Move easily. Travel anywhere.",
+  description:
+    "Africa-first ride-sharing & bus booking platform. Join trips, post trips, and travel safely with verified drivers.",
   icons: {
-    icon: ["/icons/icon-192.png"],
-    apple: ["/icons/icon-192.png"],
-  },
-
-  openGraph: {
-    title: "SisiMove — Africa’s Best Ridesharing App",
-    description: "Fast, safe and affordable rides across Africa.",
-    url: "https://sisimove.com",
-    siteName: "SisiMove",
-    type: "website",
-    images: [
-      {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "SisiMove OpenGraph Image",
-      },
-    ],
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: "SisiMove — Africa’s Best Ridesharing App",
-    description: "Fast, safe and affordable rides across Africa.",
-    images: ["/opengraph-image"],
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
-/* ========================================================
-   ROOT LAYOUT
-======================================================== */
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1"
-        />
+    <html lang="en" className={inter.variable}>
+      <body className="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+        <ClientShell>
+          {/* HEADER (fixed spacing, no hydration mismatch) */}
+          <header className="w-full z-50">
+            <Header />
+          </header>
 
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-      </head>
-
-      <body
-        className={`${inter.variable} antialiased bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100`}
-      >
-        <ThemeProvider>
-          <AuthProvider>
-            <div className="min-h-screen flex flex-col">
-              <Navbar />
-              <main className="flex-1 pb-16">{children}</main>
-              <BottomNav />
+          {/* MAIN CONTENT */}
+          <main className="w-full flex-1">
+            <div className="w-full max-w-[1350px] mx-auto px-4 md:px-6 lg:px-8">
+              {children}
             </div>
+          </main>
 
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  if ("serviceWorker" in navigator) {
-                    window.addEventListener("load", () => {
-                      navigator.serviceWorker
-                        .register("/sw.js")
-                        .catch(err => console.log("SW registration failed:", err));
-                    });
-                  }
-                `,
-              }}
-            />
-          </AuthProvider>
-        </ThemeProvider>
+          {/* FOOTER */}
+          <footer className="w-full mt-20">
+            <Footer />
+          </footer>
+
+          {/* BOTTOM NAV (mobile only) */}
+          <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-[500px] px-4 safe-bottom">
+            <BottomNav />
+          </div>
+        </ClientShell>
       </body>
     </html>
   );

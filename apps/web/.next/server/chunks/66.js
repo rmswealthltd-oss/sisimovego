@@ -1,0 +1,1 @@
+"use strict";exports.id=66,exports.ids=[66],exports.modules={4066:(e,s,t)=>{t.r(s),t.d(s,{$$typeof:()=>p,__esModule:()=>r,default:()=>d});let o=(0,t(3610).createProxy)(String.raw`C:\Users\HP\sisimovego\apps\web\src\components\PromoInput.tsx`),{__esModule:r,$$typeof:p}=o,d=o.default}};

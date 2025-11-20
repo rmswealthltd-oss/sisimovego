@@ -1,6 +1,6 @@
 // apps/web/src/utils/trip.ts
 
-import { TripView } from "@/types/trip";
+import { TripView } from "../../types/trip";
 import { TripStatusLabels, TripStatusColors } from "@/constants/tripStatus";
 import { moneyFromCents } from "@/lib/money";
 
