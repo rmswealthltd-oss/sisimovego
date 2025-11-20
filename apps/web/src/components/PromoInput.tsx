@@ -6,7 +6,7 @@ import clsx from "clsx";
 interface PromoInputProps {
   loading?: boolean;
   defaultValue?: string;
-  onApply: (_code: string) => void;
+  onApply: (_code: string) => void; // Correct unused arg format
 }
 
 export default function PromoInput({

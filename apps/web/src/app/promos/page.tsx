@@ -1,15 +1,10 @@
-"use client";
-
+// apps/web/src/app/promos/page.tsx
 import { buildMeta } from "@/lib/seo";
-import PromoInput from "@/components/PromoInput";
+import PromoInputClient from "./PromoInputClient"; // client wrapper
 
 export const metadata = buildMeta({ title: "Promos • SisiMove" });
 
 export default function PromosPage() {
-  function handleApply(code: string) {
-    console.log("Apply promo:", code);
-  }
-
   return (
     <div className="max-w-md mx-auto p-6">
       <h1 className="text-2xl font-semibold">Promo codes</h1>
@@ -18,7 +13,7 @@ export default function PromosPage() {
       </p>
 
       <div className="mt-4">
-        <PromoInput onApply={handleApply} />
+        <PromoInputClient />
       </div>
     </div>
   );
