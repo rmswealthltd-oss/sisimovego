@@ -1,46 +1,57 @@
-// src/modules/trips/driverLocation.service.ts
 import prisma from "../../db";
 import { getIO } from "../../socket";
-
-/**
- * DriverLocationService:
- * - upsert driver location
- * - mark active/inactive
- * - broadcast via socket.io
- */
+import { DriverLocation } from "@prisma/client";
+import { haversineDistance } from "../../lib/haversine";
 
 export const DriverLocationService = {
-  async updateDriverLocation(driverId: string, lat: number, lon: number, bearing?: number, speed?: number) {
+  /**
+   * Upsert a driver's location and broadcast via Socket.IO
+   */
+  async updateDriverLocation(
+    driverId: string,
+    lat: number,
+    lon: number,
+    bearing?: number,
+    speed?: number
+  ): Promise<DriverLocation> {
     const loc = await prisma.driverLocation.upsert({
       where: { driverId },
       create: { driverId, lat, lon, bearing: bearing ?? null, speed: speed ?? null, isActive: true },
-      update: { lat, lon, bearing: bearing ?? null, speed: speed ?? null, isActive: true, updatedAt: new Date() }
+      update: { lat, lon, bearing: bearing ?? null, speed: speed ?? null, isActive: true, updatedAt: new Date() },
     });
 
     try {
-      const io = getIO();
-      io.to(`driver_${driverId}`).emit("location_update", { driverId, lat, lon, bearing, speed });
-    } catch (e) {
-      // ignore
+      getIO().to(`driver_${driverId}`).emit("location_update", { driverId, lat, lon, bearing, speed });
+    } catch {
+      // ignore socket errors
     }
 
     return loc;
   },
 
-  async deactivateDriver(driverId: string) {
+  /**
+   * Deactivate a driver's location
+   */
+  async deactivateDriver(driverId: string): Promise<DriverLocation | null> {
     try {
-      return prisma.driverLocation.update({ where: { driverId }, data: { isActive: false } });
-    } catch (e) {
+      return await prisma.driverLocation.update({
+        where: { driverId },
+        data: { isActive: false },
+      });
+    } catch {
       return null;
     }
   },
 
-  async getNearbyDrivers(lat: number, lon: number, radiusKm = 10) {
+  /**
+   * Get all active drivers within a given radius (km)
+   */
+  async getNearbyDrivers(lat: number, lon: number, radiusKm = 10): Promise<DriverLocation[]> {
     const drivers = await prisma.driverLocation.findMany({ where: { isActive: true } });
-    // filter by distance
-    return drivers.filter((d: any) => {
-      const dist = require("../../lib/haversine").haversineDistance([lat, lon], [d.lat, d.lon]);
+
+    return drivers.filter(d => {
+      const dist = haversineDistance([lat, lon], [d.lat, d.lon]);
       return dist <= radiusKm;
     });
-  }
+  },
 };

@@ -1,6 +1,6 @@
-// src/routes/admin/trips.routes.ts
 import { Router } from "express";
 import prisma from "../../db";
+import { TripStatus } from "@prisma/client"; // ✅ Import enum from Prisma client
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
 
@@ -12,10 +12,7 @@ router.get(
   requireAdmin,
   asyncHandler(async (_req, res) => {
     const trips = await prisma.trip.findMany({
-      include: {
-        user: true,
-        driver: true,
-      },
+      include: { owner: true, driver: true },
       orderBy: { createdAt: "desc" },
     });
     res.json(trips);
@@ -29,7 +26,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const trip = await prisma.trip.findUnique({
       where: { id: req.params.id },
-      include: { user: true, driver: true },
+      include: { owner: true, driver: true },
     });
     res.json(trip);
   })
@@ -40,10 +37,17 @@ router.get(
   "/status/:status",
   requireAdmin,
   asyncHandler(async (req, res) => {
+    const statusParam = req.params.status.toUpperCase() as keyof typeof TripStatus;
+
+    if (!(statusParam in TripStatus)) {
+      return res.status(400).json({ message: "Invalid trip status" });
+    }
+
     const trips = await prisma.trip.findMany({
-      where: { status: req.params.status },
-      include: { user: true, driver: true },
+      where: { status: TripStatus[statusParam] },
+      include: { owner: true, driver: true },
     });
+
     res.json(trips);
   })
 );

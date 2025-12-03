@@ -1,58 +1,80 @@
-// src/routes/payouts/payoutBatch.routes.ts
+// src/routes/payouts/payout.routes.ts
 import { Router } from "express";
-import { requireAdmin } from "../../middleware/requireAdmin";
+import { requireAuth } from "../../middleware/requireAuth";
 import { asyncHandler } from "../../middleware/asyncHandler";
-import { PayoutService } from "../../modules/payments/payout.service";
 import prisma from "../../db";
+import { PayoutService } from "../../modules/payments/payout.service";
+import { z } from "zod";
 
 const router = Router();
 
+// ----------------------------
+// Validation Schema
+// ----------------------------
+const PayoutRequestSchema = z.object({
+  amountCents: z.number().int().positive(),
+  phone: z.string().min(8),
+});
+
 /**
- * POST /api/payouts/batch
- * body: [{ driverId, amountCents, phone }]
+ * POST /api/payouts/request
+ * Driver requests cashout
  */
 router.post(
-  "/batch",
-  requireAdmin,
+  "/request",
+  requireAuth,
   asyncHandler(async (req, res) => {
-    const batch = req.body;
-    if (!Array.isArray(batch)) {
-      return res.status(400).json({ error: "invalid_array" });
+    const userId = (req as any).user.sub;
+
+    const parse = PayoutRequestSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({
+        error: "invalid_payload",
+        details: parse.error.flatten(),
+      });
     }
 
-    const results = [];
+    const { amountCents, phone } = parse.data;
 
-    for (const item of batch) {
-      try {
-        const payout = await PayoutService.createPayout({
-          recipientId: item.driverId,
-          recipientPhone: item.phone,
-          amountCents: item.amountCents,
-          description: `Batch payout to ${item.driverId}`
-        });
-
-        results.push({ ok: true, payout });
-      } catch (err: any) {
-        results.push({ ok: false, error: err.message, item });
-      }
+    // 1. Check driver existence
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) {
+      return res.status(403).json({ error: "not_driver" });
     }
 
-    return res.json({ results });
+    // 2. Create payout request using recipientId / recipientPhone
+    const payout = await PayoutService.createPayout({
+      recipientId: driver.id,
+      recipientPhone: phone,
+      amountCents,
+      description: `Driver payout request for driver ${driver.id}`,
+    });
+
+    return res.json({ ok: true, payout });
   })
 );
 
 /**
- * GET /api/payouts/batch/list
+ * GET /api/payouts/my
+ * Driver views their payout history
  */
 router.get(
-  "/list",
-  requireAdmin,
+  "/my",
+  requireAuth,
   asyncHandler(async (req, res) => {
-    const rows = await prisma.payout.findMany({
+    const userId = (req as any).user.sub;
+
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) {
+      return res.status(403).json({ error: "not_driver" });
+    }
+
+    const payouts = await prisma.payout.findMany({
+      where: { driverId: driver.id },
       orderBy: { createdAt: "desc" },
-      include: { driver: true }
     });
-    return res.json(rows);
+
+    return res.json(payouts);
   })
 );
 

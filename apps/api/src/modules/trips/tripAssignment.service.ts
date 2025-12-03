@@ -39,7 +39,7 @@ export const TripAssignmentService = {
     });
 
     // outbox + socket
-    await prisma.outbox.create({
+    await prisma.outboxEvent.create({
       data: {
         aggregateType: "Trip",
         aggregateId: tripId,

@@ -18,8 +18,11 @@ router.get(
       orderBy: { createdAt: "desc" },
       include: {
         driver: true,
-        passenger: true,
-        _count: { select: { trips: true } },
+        wallets: true,
+        tripsPosted: true,
+        bookings: true,
+        ratingsGiven: true,
+        ratingsReceived: true,
       },
     });
 
@@ -39,8 +42,11 @@ router.get(
       where: { id: req.params.id },
       include: {
         driver: true,
-        passenger: true,
-        trips: true,
+        wallets: true,
+        tripsPosted: true,
+        bookings: true,
+        ratingsGiven: true,
+        ratingsReceived: true,
       },
     });
 
@@ -58,7 +64,7 @@ router.get(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const trips = await prisma.trip.findMany({
-      where: { userId: req.params.id },
+      where: { ownerId: req.params.id },
       orderBy: { createdAt: "desc" },
     });
 
@@ -68,13 +74,13 @@ router.get(
 
 /**
  * PUT /api/admin/users/:id
- * Update user (name, email, phone)
+ * Update user (firstName, middleName, lastName, email, phone)
  */
 router.put(
   "/:id",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { name, email, phone } = req.body;
+    const { firstName, middleName, lastName, email, phone } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
@@ -84,7 +90,9 @@ router.put(
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
-        name: name ?? user.name,
+        firstName: firstName ?? user.firstName,
+        middleName: middleName ?? user.middleName,
+        lastName: lastName ?? user.lastName,
         email: email ?? user.email,
         phone: phone ?? user.phone,
       },

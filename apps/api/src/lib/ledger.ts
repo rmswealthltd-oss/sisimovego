@@ -1,29 +1,46 @@
 // src/lib/ledger.ts
+import { PrismaClient, Prisma, LedgerType } from "@prisma/client";
 import prisma from "../db";
+
+type LedgerTx = Prisma.TransactionClient | PrismaClient;
 
 /**
  * Small ledger helpers used across services.
  */
 
-export async function createLedgerEntry(tx: any, data: { bookingId?: string; walletId?: string; amount: number; type: string; description?: string }) {
+/**
+ * Create a ledger entry
+ */
+export async function createLedgerEntry(
+  tx: LedgerTx,
+  data: {
+    bookingId?: string;
+    walletId?: string;
+    amount: number;
+    type: LedgerType; // ← use enum here
+    description?: string;
+  }
+) {
   return tx.ledger.create({
     data: {
-      bookingId: data.bookingId ?? null,
+     
       walletId: data.walletId ?? null,
       amount: data.amount,
-      type: data.type,
-      description: data.description ?? null
-    }
+      type: data.type, // ← value from enum
+      description: data.description ?? null,
+    },
   });
 }
 
 /**
- * Compute wallet balance by summing ledger entries (safer than trusting wallet.balance if you want canonical)
+ * Compute wallet balance by summing ledger entries
  */
 export async function computeWalletBalance(walletId: string) {
   const agg = await prisma.ledger.aggregate({
     _sum: { amount: true },
-    where: { walletId }
+    where: { walletId },
   });
-  return agg._sum.amount ?? 0;
+
+  // _sum may be null, and amount may be null if no rows exist
+  return agg._sum?.amount ?? 0;
 }

@@ -11,8 +11,9 @@ router.get(
   "/",
   requireAdmin,
   asyncHandler(async (_req, res) => {
-    const tickets = await prisma.supportTicket.findMany({
-      include: { user: true },
+    const tickets = await prisma.support.findMany({
+      where: { parentId: null }, // only top-level tickets
+      include: { user: true, replies: true },
       orderBy: { createdAt: "desc" },
     });
     res.json(tickets);
@@ -24,10 +25,13 @@ router.get(
   "/:id",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const ticket = await prisma.supportTicket.findUnique({
+    const ticket = await prisma.support.findUnique({
       where: { id: req.params.id },
-      include: { user: true, messages: true },
+      include: { user: true, replies: true },
     });
+
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
+
     res.json(ticket);
   })
 );
@@ -37,13 +41,16 @@ router.post(
   "/:id/reply",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const reply = await prisma.supportMessage.create({
+    const reply = await prisma.support.create({
       data: {
-        ticketId: req.params.id,
+        parentId: req.params.id,
+        userId: req.body.userId, // optional, can use admin ID if needed
         message: req.body.message,
         sender: "ADMIN",
       },
+      include: { user: true },
     });
+
     res.json(reply);
   })
 );

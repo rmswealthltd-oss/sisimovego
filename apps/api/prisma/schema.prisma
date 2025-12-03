@@ -1,150 +1,50 @@
-// ======================================================================
-// Prisma Schema — SisiMove Backend (FINAL CLEAN VERSION)
-// ======================================================================
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["sisimove_schema"]
 }
 
 // ======================================================================
-// USERS
+// ENUMS
 // ======================================================================
-
-model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String?  @unique
-  phone        String?  @unique
-  passwordHash String
-  role         UserRole @default(PASSENGER)
-  suspended    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  driver        Driver?
-  bookings      Booking[]
-  payments      Payment[]
-  notifications Notification[]
-  refunds       Refund[]
-  fraudEvents   FraudEvent[]
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  @@schema("sisimove_schema")
 }
 
-enum UserRole {
-  PASSENGER
-  DRIVER
-  ADMIN
-}
-
-// ======================================================================
-// DRIVER + VEHICLE
-// ======================================================================
-
-model Driver {
-  id       String  @id @default(uuid())
-  userId   String  @unique
-  user     User    @relation(fields: [userId], references: [id])
-  verified Boolean @default(false)
-  rating   Float?  @default(5.0)
-
-  vehicle     Vehicle?
-  trips       Trip[]
-  payouts     Payout[]
-  LedgerEntry LedgerEntry[]
-}
-
-model Vehicle {
-  id       String @id @default(uuid())
-  driverId String @unique
-  driver   Driver @relation(fields: [driverId], references: [id])
-
-  make  String
-  model String
-  plate String  @unique
-  color String?
-}
-
-// ======================================================================
-// TRIPS
-// ======================================================================
-
-model Trip {
-  id       String @id @default(uuid())
-  driverId String
-  driver   Driver @relation(fields: [driverId], references: [id])
-
-  origin      String
-  destination String
-  originLat   Float
-  originLng   Float
-  destLat     Float
-  destLng     Float
-
-  priceCents     Int
-  availableSeats Int
-  status         TripStatus @default(PENDING)
-  departureAt    DateTime
-  createdAt      DateTime   @default(now())
-
-  bookings Booking[]
+enum DocumentType {
+  GOVERNMENT_ID
+  DRIVER_LICENSE
+  @@schema("sisimove_schema")
 }
 
 enum TripStatus {
-  PENDING
-  DRIVER_ASSIGNED
-  ONGOING
+  ACTIVE
   COMPLETED
   CANCELLED
+  @@schema("sisimove_schema")
 }
 
-// ======================================================================
-// BOOKINGS + PAYMENTS
-// ======================================================================
-
-model Booking {
-  id         String        @id @default(uuid())
-  tripId     String
-  userId     String
-  seats      Int
-  totalCents Int
-  status     BookingStatus @default(PENDING)
-  createdAt  DateTime      @default(now())
-
-  trip    Trip     @relation(fields: [tripId], references: [id])
-  user    User     @relation(fields: [userId], references: [id])
-  payment Payment?
-  refund  Refund?
-}
-
-enum BookingStatus {
+enum RequestStatus {
   PENDING
-  PAID
+  ACCEPTED
+  DECLINED
   CANCELLED
-  REFUNDED
-}
-
-model Payment {
-  id          String          @id @default(uuid())
-  bookingId   String          @unique
-  userId      String
-  provider    PaymentProvider
-  reference   String
-  phone       String?
-  amountCents Int
-  status      PaymentStatus   @default(PENDING)
-  createdAt   DateTime        @default(now())
-
-  booking Booking @relation(fields: [bookingId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  @@schema("sisimove_schema")
 }
 
 enum PaymentProvider {
   MPESA
   STRIPE
+  CASH
+  @@schema("sisimove_schema")
 }
 
 enum PaymentStatus {
@@ -152,23 +52,7 @@ enum PaymentStatus {
   SUCCESS
   FAILED
   CANCELLED
-}
-
-// ======================================================================
-// REFUNDS
-// ======================================================================
-
-model Refund {
-  id        String       @id @default(uuid())
-  bookingId String       @unique
-  userId    String
-  status    RefundStatus @default(PENDING)
-  reason    String?
-  ruleHits  Json?
-  createdAt DateTime     @default(now())
-
-  booking Booking @relation(fields: [bookingId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  @@schema("sisimove_schema")
 }
 
 enum RefundStatus {
@@ -176,19 +60,336 @@ enum RefundStatus {
   APPROVED
   REJECTED
   PAID
+  @@schema("sisimove_schema")
+}
+
+enum LedgerType {
+  BOOKING_PAYMENT
+  BOOKING_RESERVE
+  RIDE_PAYMENT
+  DRIVER_EARNING
+  PLATFORM_FEE
+  REFUND
+  REFUND_DEBIT
+  TRIP_EARNING
+  DRIVER_PAYOUT
+  PAYOUT
+  WITHDRAWAL
+  TOPUP
+  PROMO
+  ADJUSTMENT
+  @@schema("sisimove_schema")
+}
+
+enum EntryDirection {
+  CREDIT
+  DEBIT
+  @@schema("sisimove_schema")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  CANCELLED
+  REFUNDED
+  COMPLETED
+  @@schema("sisimove_schema")
+}
+
+enum WalletType {
+  ESCROW
+  DRIVER
+  SYSTEM
+  @@schema("sisimove_schema")
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  APPROVED
+  REJECTED
+  @@schema("sisimove_schema")
+}
+
+enum LedgerEntityType {
+  TRIP
+  BOOKING
+  USER
+  @@schema("sisimove_schema")
+}
+
+enum UserRole {
+  USER
+  DRIVER
+  ADMIN
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// USERS
+// ======================================================================
+model User {
+  id                   String   @id @default(uuid())
+  firstName            String
+  middleName           String?
+  lastName             String
+  email                String?  @unique
+  phone                String?  @unique
+  passwordHash         String
+  role                 UserRole @default(USER)
+  suspended            Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  governmentIdStatus   VerificationStatus @default(PENDING)
+  driverLicenseStatus  VerificationStatus @default(PENDING)
+  documents            Document[]
+  tripsPosted          Trip[] @relation("TripOwner")
+  tripRequests         TripRequest[]
+  bookings             Booking[] @relation("UserBookings")
+  payments             Payment[]
+  refunds              Refund[]
+  notifications        Notification[]
+  fraudEvents          FraudEvent[]
+  messages             Message[] @relation("UserMessages")
+  ratingsGiven         Rating[] @relation("RatingAuthor")
+  ratingsReceived      Rating[] @relation("RatingRecipient")
+  ledgerEntries        LedgerEntry[]
+  pushSubs             PushSubscription[]
+  notificationSetting  NotificationSetting?
+  payouts              Payout[]
+  wallets              Wallet[] @relation("UserWallets")
+  driver               Driver?
+  DriverLocation       DriverLocation?
+  Support              Support[]
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// DOCUMENTS
+// ======================================================================
+model Document {
+  id          String             @id @default(uuid())
+  userId      String
+  type        DocumentType
+  fileUrl     String
+  status      VerificationStatus @default(PENDING)
+  submittedAt DateTime           @default(now())
+  reviewedAt  DateTime?
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// DRIVERS
+// ======================================================================
+model Driver {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified  Boolean  @default(false)
+  rating    Float?   @default(5.0)
+  walletId  String?  @unique
+  createdAt DateTime @default(now())
+  wallet    Wallet?   @relation("DriverWallet", fields: [walletId], references: [id])
+  payouts   Payout[]
+  trips     Trip[] @relation("DriverTrips")
+  vehicles  Vehicle[]
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// WALLET
+// ======================================================================
+model Wallet {
+  id        String     @id @default(uuid())
+  ownerId   String?
+  type      WalletType
+  balance   Int        @default(0)
+  currency  String     @default("KES")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  owner     User?      @relation("UserWallets", fields: [ownerId], references: [id], onDelete: Cascade)
+  driver    Driver?    @relation("DriverWallet")
+  ledgers   Ledger[]
+  ledgerEntries LedgerEntry[]
+  @@unique([ownerId, type])
+  @@index([ownerId])
+  @@index([type])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// TRIPS
+// ======================================================================
+model Trip {
+  id             String   @id @default(uuid())
+  ownerId        String
+  fromLocation   String
+  toLocation     String
+  date           DateTime
+  pricePerSeat   Int
+  totalSeats     Int
+  availableSeats Int
+  notes          String?
+  status         TripStatus @default(ACTIVE)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  canceledAt     DateTime?
+  cancelReason   String?
+  createdAt      DateTime @default(now())
+  owner          User     @relation("TripOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  driverId       String?
+  driver         Driver?  @relation("DriverTrips", fields: [driverId], references: [id])
+  outboxEvents   OutboxEvent[] @relation("TripOutbox")
+  requests       TripRequest[]
+  messages       Message[] @relation("TripMessages")
+  ratings        Rating[]
+  bookings       Booking[]
+  statusAudits   TripStatusAudit[]
+  @@index([ownerId])
+  @@index([date])
+  @@index([fromLocation, toLocation])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// TRIP REQUESTS
+// ======================================================================
+model TripRequest {
+  id        String        @id @default(uuid())
+  tripId    String
+  userId    String
+  seats     Int           @default(1)
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  trip      Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment   Payment?       @relation("TripRequestPayment")
+  @@index([tripId])
+  @@index([userId])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// BOOKINGS
+// ======================================================================
+model Booking {
+  id             String        @id @default(uuid())
+  tripId         String
+  passengerId    String
+  seats          Int           @default(1)
+  amountCents    Int           @default(0)
+  amountPaid     Int           @default(0)
+  status         BookingStatus @default(PENDING)
+  provider       PaymentProvider?
+  providerTxId   String?       @unique
+  idempotencyKey String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  paidAt         DateTime?
+  trip           Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  passenger      User          @relation("UserBookings", fields: [passengerId], references: [id], onDelete: Cascade)
+  payment        Payment?      @relation("PaymentBooking")
+  refund         Refund[]
+  ledgerEntries  LedgerEntry[] @relation("BookingLedgerEntries")
+  @@index([tripId])
+  @@index([passengerId])
+  @@index([status])
+  @@schema("sisimove_schema")
+}
+// ======================================================================
+// MESSAGES
+// ======================================================================
+model Message {
+  id        String   @id @default(uuid())
+  tripId    String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+  trip      Trip     @relation("TripMessages", fields: [tripId], references: [id], onDelete: Cascade)
+  sender    User     @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  @@index([tripId])
+  @@index([senderId])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// RATINGS
+// ======================================================================
+model Rating {
+  id         String   @id @default(uuid())
+  tripId     String
+  authorId   String
+  recipientId String
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author     User     @relation("RatingAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  recipient  User     @relation("RatingRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  @@index([tripId])
+  @@index([authorId])
+  @@index([recipientId])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// PAYMENTS
+// ======================================================================
+model Payment {
+  id            String        @id @default(uuid())
+  amount        Int
+  method        String
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  tripRequestId String?       @unique
+  bookingId     String?       @unique
+  userId        String?
+  tripRequest   TripRequest?  @relation("TripRequestPayment", fields: [tripRequestId], references: [id])
+  booking       Booking?      @relation("PaymentBooking", fields: [bookingId], references: [id])
+  user          User?         @relation(fields: [userId], references: [id])
+  refund        Refund[]
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// REFUNDS
+// ======================================================================
+model Refund {
+  id             String       @id @default(uuid())
+  userId         String
+  paymentId      String?
+  bookingId      String?
+  amount         Int
+  status         RefundStatus @default(PENDING)
+  reason         String?
+  ruleHits       Json?
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment        Payment?     @relation(fields: [paymentId], references: [id])
+  booking        Booking?     @relation(fields: [bookingId], references: [id])
+  FraudCase      FraudCase[]
+  fraudRuleHits  FraudRuleHit[]
+  @@index([userId])
+  @@index([paymentId])
+  @@index([bookingId])
+  @@schema("sisimove_schema")
 }
 
 // ======================================================================
 // FRAUD ENGINE
 // ======================================================================
-
 model FraudRule {
-  id     String  @id @default(uuid())
+  id     String       @id @default(uuid())
   name   String
   script String
-  active Boolean @default(true)
-
+  active Boolean      @default(true)
   events FraudEvent[]
+  @@schema("sisimove_schema")
 }
 
 model FraudEvent {
@@ -198,80 +399,87 @@ model FraudEvent {
   score     Int
   metadata  Json?
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule      FraudRule? @relation(fields: [ruleId], references: [id])
+  @@index([userId])
+  @@index([ruleId])
+  @@schema("sisimove_schema")
+}
 
-  user User       @relation(fields: [userId], references: [id])
-  rule FraudRule? @relation(fields: [ruleId], references: [id])
+model FraudCase {
+  id        String   @id @default(uuid())
+  refundId  String
+  score     Int
+  summary   String
+  status    String
+  createdAt DateTime @default(now())
+  refund    Refund   @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  @@schema("sisimove_schema")
 }
 
 // ======================================================================
-// PAYOUTS + LEDGER
+// PAYOUTS & LEDGER
 // ======================================================================
-
 model Payout {
-  id       String  @id @default(uuid())
-  driverId String
-  batchId  String?
-  amount   Int
-  status   String // PENDING | APPROVED | REJECTED | FAILED | PAID
-
-  approvedAt DateTime? @db.Timestamptz
-  rejectedAt DateTime? @db.Timestamptz
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  driver        Driver        @relation(fields: [driverId], references: [id])
-  batch         PayoutBatch?  @relation(fields: [batchId], references: [id])
-  ledgerEntries LedgerEntry[]
+  id           String       @id @default(uuid())
+  userId       String
+  driverId     String?
+  batchId      String?
+  amountCents  Int
+  currency     String       @default("KES")
+  providerTxId String?
+  status       PayoutStatus @default(PENDING)
+  phone        String?
+  description  String?
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  driver       Driver?      @relation(fields: [driverId], references: [id])
+  batch        PayoutBatch? @relation(fields: [batchId], references: [id])
+  ledger       LedgerEntry[]
+  @@index([userId])
+  @@index([driverId])
+  @@schema("sisimove_schema")
 }
 
 model PayoutBatch {
-  id         String   @id @default(uuid())
-  totalCents Int
-  createdAt  DateTime @default(now())
-
-  payouts Payout[]
+  id          String   @id @default(uuid())
+  totalCents  Int
+  createdAt   DateTime @default(now())
+  payouts     Payout[]
+  @@schema("sisimove_schema")
 }
 
 model LedgerEntry {
-  id        String     @id @default(uuid())
-  payoutId  String?
-  driverId  String
+  id        String       @id @default(cuid())
+  ledgerId  String
+  walletId  String?
   amount    Int
-  type      LedgerType
+  direction EntryDirection
+  ledger    Ledger       @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  wallet    Wallet?      @relation(fields: [walletId], references: [id])
+  payoutId  String?
+  userId    String?
+  bookingId String?
   reference String?
   note      String?
-
-  createdAt DateTime @default(now())
-  driver    Driver   @relation(fields: [driverId], references: [id])
-  payout    Payout?  @relation(fields: [payoutId], references: [id])
-}
-
-enum LedgerType {
-  PAYOUT
-  TRIP_EARNING
-  PROMO
-  REFUND_DEBIT
-  ADJUSTMENT
-}
-
-// ======================================================================
-// PAYMENT CALLBACKS
-// ======================================================================
-
-model PaymentCallback {
-  id           String   @id @default(cuid())
-  provider     String
-  providerTxId String   @unique
-  rawPayload   Json
-  status       String   @default("RECEIVED")
-  createdAt    DateTime @default(now())
+  payout    Payout?      @relation(fields: [payoutId], references: [id])
+  user      User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking   Booking?     @relation("BookingLedgerEntries", fields: [bookingId], references: [id])
+  createdAt DateTime     @default(now())
+  @@index([ledgerId])
+  @@index([walletId])
+  @@index([userId])
+  @@index([bookingId])
+  @@map("LedgerEntry")
+  @@schema("sisimove_schema")
 }
 
 // ======================================================================
-// NOTIFICATIONS
+// NOTIFICATIONS / PUSH
 // ======================================================================
-
 model Notification {
   id        String   @id @default(uuid())
   userId    String
@@ -279,30 +487,99 @@ model Notification {
   body      String
   data      Json?
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@schema("sisimove_schema")
+}
 
-  user User @relation(fields: [userId], references: [id])
+model NotificationSetting {
+  id           String  @id @default(uuid())
+  userId       String  @unique
+  emailEnabled Boolean @default(true)
+  smsEnabled   Boolean @default(false)
+  pushEnabled  Boolean @default(true)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@schema("sisimove_schema")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, endpoint], name: "userId_endpoint")
+  @@index([userId])
+  @@schema("sisimove_schema")
 }
 
 // ======================================================================
-// PROMO CODES
+// PAYMENT CALLBACKS
 // ======================================================================
+model PaymentCallback {
+  id           String   @id @default(cuid())
+  provider     String
+  providerTxId String   @unique
+  rawPayload   Json
+  status       String   @default("RECEIVED")
+  createdAt    DateTime @default(now())
+  @@index([provider])
+  @@schema("sisimove_schema")
+}
 
+// ======================================================================
+// OUTBOX / DEAD LETTER QUEUE
+// ======================================================================
+model OutboxEvent {
+  id           String   @id @default(cuid())
+  aggregateType String?
+  aggregateId   String?
+  type          String
+  channel       String?
+  status        String   @default("READY")
+  payload       Json
+  processed     Boolean  @default(false)
+  attempts      Int      @default(0)
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  trip          Trip?    @relation("TripOutbox", fields: [aggregateId], references: [id])
+  @@index([status])
+  @@index([processed])
+  @@index([aggregateId])
+  @@index([type])
+  @@schema("sisimove_schema")
+}
+
+model DeadLetter {
+  id        String   @id @default(cuid())
+  source    String?
+  payload   Json
+  error     String?
+  createdAt DateTime @default(now())
+  @@index([source])
+  @@schema("sisimove_schema")
+}
+
+// ======================================================================
+// SYSTEM / SETTINGS
+// ======================================================================
 model PromoCode {
-  id          String   @id @default(cuid())
-  code        String   @unique
+  id        String   @id @default(cuid())
+  code      String   @unique
   discountPct Int
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  @@schema("sisimove_schema")
 }
-
-// ======================================================================
-// CRON + SETTINGS
-// ======================================================================
 
 model CronState {
   id      String   @id
   lastRun DateTime @default(now())
+  @@schema("sisimove_schema")
 }
 
 model SystemSetting {
@@ -310,45 +587,104 @@ model SystemSetting {
   value     String
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+  @@schema("sisimove_schema")
 }
 
-// ======================================================================
-// DEAD LETTER QUEUE
-// ======================================================================
+model Ledger {
+  id        String         @id @default(cuid())
+  reference String?
+  description String?
+  type      LedgerType
+  entityType LedgerEntityType?
+  entityId   String?
+  amount     Int
+  createdAt  DateTime      @default(now())
+  entries    LedgerEntry[]
+  Wallet     Wallet?        @relation(fields: [walletId], references: [id])
+  walletId   String?
+  @@map("Ledger")
+  @@schema("sisimove_schema")
+}
 
-model DeadLetter {
-  id        String   @id @default(uuid())
-  source    String
+model Dlq {
+  id        String   @id @default(cuid())
   payload   Json
-  error     String
+  reason    String?
   createdAt DateTime @default(now())
+  @@map("DLQ")
+  @@schema("sisimove_schema")
 }
 
-// ======================================================================
-// OUTBOX
-// ======================================================================
+model TripStatusAudit {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  status    String
+  createdAt DateTime @default(now())
+  @@index([tripId])
+  @@schema("sisimove_schema")
+}
 
-model OutboxEvent {
-  id String @id @default(uuid())
+model WebhookLog {
+  id           String   @id @default(cuid())
+  event        String
+  payload      Json
+  success      Boolean
+  errorMessage String?
+  deliveredAt  DateTime?
+  replayCount  Int      @default(0)
+  lastReplayAt DateTime?
+  createdAt    DateTime @default(now())
+  @@schema("sisimove_schema")
+}
 
-  type    String
-  channel String?
+model DriverLocation {
+  driverId  String   @id
+  lat       Float
+  lon       Float
+  bearing   Float?
+  speed     Float?
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  driver    User     @relation(fields: [driverId], references: [id])
+  @@schema("sisimove_schema")
+}
 
-  aggregateType String?
-  aggregateId   String?
-
-  status    String  @default("READY")
-  processed Boolean @default(false)
-  attempts  Int     @default(0)
-  lastError String?
-
-  payload Json
-
+model Support {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  parentId  String?
+  parent    Support? @relation("SupportReplies", fields: [parentId], references: [id])
+  replies   Support[] @relation("SupportReplies")
+  message   String
+  sender    String
+  status    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@index([userId])
+  @@schema("sisimove_schema")
+}
 
-  @@index([status])
-  @@index([processed])
-  @@index([aggregateId])
-  @@index([type])
+model Vehicle {
+  id        String   @id @default(cuid())
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  make      String
+  model     String
+  plate     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@schema("sisimove_schema")
+}
+
+model FraudRuleHit {
+  id        String   @id @default(cuid())
+  refundId  String
+  rule      String
+  triggered Boolean
+  createdAt DateTime @default(now())
+  refund    Refund   @relation(fields: [refundId], references: [id])
+  @@index([refundId])
+  @@schema("sisimove_schema")
 }

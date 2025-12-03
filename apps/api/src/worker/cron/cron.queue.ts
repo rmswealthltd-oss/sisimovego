@@ -6,13 +6,17 @@ import { logger } from "../../lib/logger";
 
 /**
  * Push a cron job into the Outbox queue.
- * The Outbox worker will pick it up and execute its processor.
+ * Standardized to match Prisma OutboxEvent schema.
  */
 export async function enqueueCronTask(taskName: string, payload: any = {}) {
   return prisma.outboxEvent.create({
     data: {
+      aggregateType: "Cron",
+      aggregateId: taskName,
       type: `cron.${taskName}`,
-      payload,
+      payload: JSON.stringify(payload),
+      channel: "cron",
+      status: "READY",
     },
   });
 }
@@ -22,11 +26,11 @@ export async function enqueueCronTask(taskName: string, payload: any = {}) {
  */
 async function safeRun(task: string, fn: () => Promise<any>) {
   try {
-    logger.info(`[CRON] Running task: ${task}`);
+    logger.info(`[CRON] Running: ${task}`);
     await fn();
-    logger.info(`[CRON] Completed task: ${task}`);
+    logger.info(`[CRON] Completed: ${task}`);
   } catch (err: any) {
-    logger.error(`[CRON ERROR] Task "${task}" failed: ${err?.message}`);
+    logger.error(`[CRON ERROR] ${task}: ${err?.message}`);
   }
 }
 
@@ -37,32 +41,32 @@ export function startCronTasks() {
   logger.info("[CRON] Scheduler starting...");
 
   // Every 1 minute — heartbeat
-  cron.schedule("* * * * *", async () => {
-    await safeRun("Heartbeat", async () => {
+  cron.schedule("* * * * *", () =>
+    safeRun("Heartbeat", async () => {
       await enqueueCronTask("heartbeat");
-    });
-  });
+    })
+  );
 
-  // Every 10 minutes — retry outbox
-  cron.schedule("*/10 * * * *", async () => {
-    await safeRun("RetryFailedOutbox", async () => {
+  // Every 10 minutes — retry outbox failures
+  cron.schedule("*/10 * * * *", () =>
+    safeRun("RetryFailedOutbox", async () => {
       await enqueueCronTask("retryFailedOutbox");
-    });
-  });
+    })
+  );
 
-  // Every hour — cleanup
-  cron.schedule("0 * * * *", async () => {
-    await safeRun("HourlyCleanup", async () => {
+  // Hourly cleanup
+  cron.schedule("0 * * * *", () =>
+    safeRun("HourlyCleanup", async () => {
       await enqueueCronTask("hourlyCleanup");
-    });
-  });
+    })
+  );
 
   // Nightly maintenance at 3AM
-  cron.schedule("0 3 * * *", async () => {
-    await safeRun("NightlyMaintenance", async () => {
+  cron.schedule("0 3 * * *", () =>
+    safeRun("NightlyMaintenance", async () => {
       await enqueueCronTask("nightlyMaintenance");
-    });
-  });
+    })
+  );
 
   logger.info("[CRON] Tasks registered.");
 }

@@ -1,62 +1,60 @@
 // src/routes/drivers/driver.routes.ts
-import { Router } from "express";
+import { Router, Request, Response } from "express";
+import { asyncHandler } from "../../middleware/asyncHandler";
 import { requireAuth } from "../../middleware/requireAuth";
 import { requireAdmin } from "../../middleware/requireAdmin";
-import { asyncHandler } from "../../middleware/asyncHandler";
-import { DriverService } from "../../modules/driver/driver.service";
+import { DriverController } from "../../modules/driver/driver.controller";
+import { AuthRequest } from "../../middleware/requireAuth";
 
 const router = Router();
 
 /**
- * POST /api/drivers
- * Admin creates a new driver
+ * DRIVER ROUTES
  */
-router.post(
-  "/",
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const driver = await DriverService.createDriver(req.body);
-    res.json({ ok: true, driver });
-  })
-);
 
-/**
- * GET /api/drivers/me
- * Driver fetches own profile
- */
+// GET /drivers/me
 router.get(
   "/me",
   requireAuth,
-  asyncHandler(async (req, res) => {
-    const driverId = (req as any).user.sub;
-    const driver = await DriverService.getDriver(driverId);
-    res.json({ ok: true, driver });
+  asyncHandler(async (req: Request, res: Response) => {
+    // cast req to AuthRequest to access `user`
+    const authReq = req as AuthRequest;
+    if (!authReq.user) return res.status(401).json({ message: "Unauthorized" });
+    return DriverController.me(authReq, res);
   })
 );
 
 /**
- * GET /api/drivers
- * Admin lists all drivers
+ * ADMIN ROUTES
  */
+
+// POST /drivers/verify-license
+router.post(
+  "/verify-license",
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverController.verifyLicense(authReq, res);
+  })
+);
+
+// POST /drivers/approve
+router.post(
+  "/approve",
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverController.adminVerify(authReq, res);
+  })
+);
+
+// GET /drivers
 router.get(
   "/",
   requireAdmin,
-  asyncHandler(async (_req, res) => {
-    const drivers = await DriverService.listDrivers();
-    res.json({ ok: true, drivers });
-  })
-);
-
-/**
- * PUT /api/drivers/:driverId
- * Admin update driver profile
- */
-router.put(
-  "/:driverId",
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const driver = await DriverService.updateDriver(req.params.driverId, req.body);
-    res.json({ ok: true, driver });
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverController.list(authReq, res);
   })
 );
 

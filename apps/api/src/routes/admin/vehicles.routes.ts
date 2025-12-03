@@ -1,4 +1,3 @@
-// src/routes/admin/vehicles.routes.ts
 import { Router } from "express";
 import prisma from "../../db";
 import { requireAdmin } from "../../middleware/requireAdmin";
@@ -27,6 +26,9 @@ router.get(
       where: { id: req.params.id },
       include: { driver: true },
     });
+
+    if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
+
     res.json(vehicle);
   })
 );

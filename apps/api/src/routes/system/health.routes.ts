@@ -5,23 +5,35 @@ import prisma from "../../db";
 const router = Router();
 
 /**
- * Basic health check. Returns DB and Redis readiness where possible.
+ * GET /system/health
+ * Basic service health check including DB readiness.
  */
-router.get("/", async (req, res) => {
-  const start = Date.now();
-  const resp: any = { ok: true, time: new Date().toISOString() };
+router.get(
+  "/",
+  async (req, res) => {
+    const started = Date.now();
 
-  // Check DB
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    resp.db = "ok";
-  } catch (e: any) {
-    resp.db = { ok: false, error: e.message || String(e) };
+    const status: any = {
+      ok: true,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Database check
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      status.db = "ok";
+    } catch (err: any) {
+      status.ok = false;
+      status.db = {
+        ok: false,
+        error: err?.message ?? String(err),
+      };
+    }
+
+    status.latencyMs = Date.now() - started;
+
+    return res.json(status);
   }
-
-  const duration = Date.now() - start;
-  resp.latencyMs = duration;
-  res.json(resp);
-});
+);
 
 export default router;

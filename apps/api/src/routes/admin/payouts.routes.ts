@@ -1,5 +1,6 @@
+// src/routes/admin/payouts.routes.ts
 import { Router } from "express";
-import prisma from "../../db";
+import prisma, { PayoutStatus } from "../../db";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
 
@@ -74,8 +75,7 @@ router.get(
       where: { id: req.params.id },
       include: {
         driver: true,
-        batch: true,
-        ledgerEntries: true
+        batch: true
       }
     });
 
@@ -95,7 +95,7 @@ router.post(
     const updated = await prisma.payout.update({
       where: { id: req.params.id },
       data: {
-        status: "APPROVED",
+        status: { set: PayoutStatus.APPROVED },
         approvedAt: new Date()
       }
     });
@@ -114,7 +114,7 @@ router.post(
     const updated = await prisma.payout.update({
       where: { id: req.params.id },
       data: {
-        status: "REJECTED",
+        status: { set: PayoutStatus.REJECTED },
         rejectedAt: new Date()
       }
     });
@@ -157,7 +157,7 @@ router.post(
     const failed = await prisma.payout.findMany({
       where: {
         batchId: req.params.batchId,
-        status: "FAILED"
+        status: PayoutStatus.FAILED
       }
     });
 

@@ -1,30 +1,68 @@
 // src/worker/cron/autoCompleteTrips.ts
 import prisma from "../../db";
+import { TripStatus } from "@prisma/client";
+import { TripService } from "../../modules/trips/trip.service";
 
-/**
- * Query trips that ended but not completed and auto-complete them.
- */
-export async function autoCompleteTrips() {
-  const rows = await prisma.trip.findMany({
-    where: {
-      departureAt: { lt: new Date(Date.now() - 1000 * 60 * 60 * 24) }, // older than 24h
-      // status not set or not completed
-    },
-    take: 200
-  });
+export async function autoCompleteTrips(batchSize = 100) {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  let processedCount = 0;
+  let lastId: string | undefined = undefined;
+  let hasMore = true;
 
-  for (const t of rows) {
-    try {
-      await prisma.outboxEvent.create({
-        data: {
-          aggregateType: "Trip",
-          aggregateId: t.id,
-          type: "Cron:AutoCompleteTrip",
-          payload: JSON.stringify({ tripId: t.id }),
-          channel: "cron",
-          status: "READY"
-        }
-      });
-    } catch (e) {}
+  while (hasMore) {
+    const trips: { id: string }[] = await prisma.trip.findMany({
+      where: {
+        date: { lt: cutoff },
+        status: { in: [TripStatus.ACTIVE, TripStatus.COMPLETED] },
+      },
+      select: { id: true },
+      take: batchSize,
+      orderBy: { id: "asc" },
+      ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
+    });
+
+    if (trips.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    for (const trip of trips) {
+      const currentTrip: { id: string } = trip;
+
+      try {
+        // Skip if outbox event already exists
+        const existingEvent = await prisma.outboxEvent.findFirst({
+          where: {
+            aggregateType: "Trip",
+            aggregateId: currentTrip.id,
+            type: "Cron:AutoCompleteTrip",
+            status: "READY",
+          },
+        });
+        if (existingEvent) continue;
+
+        // Force complete the trip
+        await TripService.forceComplete(currentTrip.id);
+
+        // Create outbox event
+        await prisma.outboxEvent.create({
+          data: {
+            aggregateType: "Trip",
+            aggregateId: currentTrip.id,
+            type: "Cron:AutoCompleteTrip",
+            payload: JSON.stringify({ tripId: currentTrip.id }),
+            channel: "cron",
+            status: "READY",
+          },
+        });
+
+        processedCount++;
+        lastId = currentTrip.id; // update cursor
+      } catch (err) {
+        console.error(`Failed to auto-complete trip ${currentTrip.id}`, err);
+      }
+    }
   }
+
+  return { processed: processedCount };
 }

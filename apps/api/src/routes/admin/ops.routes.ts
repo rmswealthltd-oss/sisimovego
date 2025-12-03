@@ -17,8 +17,8 @@ router.post(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const { tripId } = req.body;
-    const out = await OpsService.forceCompleteTrip(tripId);
-    res.json(out);
+    const result = await OpsService.forceCompleteTrip(tripId);
+    res.json({ ok: true, result });
   })
 );
 
@@ -31,8 +31,8 @@ router.post(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const { bookingId } = req.body;
-    const out = await OpsService.fixBooking(bookingId);
-    res.json(out);
+    const result = await OpsService.fixBooking(bookingId);
+    res.json({ ok: true, result });
   })
 );
 
@@ -46,7 +46,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { tripId } = req.params;
     const result = await TripService.restartTrip(tripId);
-    res.json(result);
+    res.json({ ok: true, trip: result });
   })
 );
 
@@ -60,7 +60,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { tripId } = req.params;
     const result = await TripService.forceComplete(tripId);
-    res.json(result);
+    res.json({ ok: true, trip: result });
   })
 );
 

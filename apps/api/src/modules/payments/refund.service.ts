@@ -1,47 +1,67 @@
 // src/modules/payments/refund.service.ts
 import prisma from "../../db";
+import crypto from "crypto";
 
 /**
- * Refund service: creates refund record, does ledger entries, and enqueues payout if needed.
- * This service does NOT automatically execute external refund (mpesa/stripe) — worker should do that.
+ * RefundService:
+ * - Initiates refunds (creates Refund row, ledger entry, outbox event)
+ * - Marks refunds as paid (ledger + outbox)
  */
-
 export const RefundService = {
   /**
-   * Initiate a refund for a booking. This will:
-   * - create Refund row (PENDING)
-   * - create Ledger refund entry (negative on escrow or positive on driver depending)
-   * - create Outbox event for refund processing
+   * Initiate a refund for a booking.
    */
-  async initiateRefund({ bookingId, amountCents, reason, requestedBy }: { bookingId: string; amountCents: number; reason?: string; requestedBy?: string }) {
+  async initiateRefund({
+    userId,
+    bookingId,
+    amountCents,
+    reason,
+    requestedBy
+  }: {
+    userId: string;
+    bookingId: string;
+    amountCents: number;
+    reason?: string;
+    requestedBy?: string;
+  }) {
     return prisma.$transaction(async (tx) => {
-      // create refund row
+      // --- Create refund row ---
       const refund = await tx.refund.create({
         data: {
+          userId,                         // required
           bookingId,
-          amount: amountCents,
+          amount: amountCents,            // required now
           reason: reason ?? null,
           status: "PENDING"
         }
       });
 
-      // ledger: create a refund ledger entry (this is an accounting placeholder)
-      await tx.ledger.create({
+      // --- Create LedgerEntry for refund request ---
+      await tx.ledgerEntry.create({
         data: {
-          bookingId,
+          ledgerId: crypto.randomUUID(),   // REQUIRED
+          walletId: null,                  // or escrow wallet
+          bookingId: bookingId,
+          userId,
           amount: -amountCents,
-          type: "REFUND",
-          description: `Refund requested ${refund.id} for booking ${bookingId}`
+          direction: "DEBIT",
+          reference: `REFUND_REQUEST_${refund.id}`,
+          note: `Refund requested for booking ${bookingId}`
         }
       });
 
-      // outbox event for worker to process actual external refund
-      await tx.outbox.create({
+      // --- Create outbox event for worker ---
+      await tx.outboxEvent.create({
         data: {
           aggregateType: "Refund",
           aggregateId: refund.id,
           type: "RefundRequested",
-          payload: JSON.stringify({ refundId: refund.id, bookingId, amount: amountCents }),
+          payload: JSON.stringify({
+            refundId: refund.id,
+            bookingId,
+            userId,
+            amount: amountCents
+          }),
           channel: "worker",
           status: "READY"
         }
@@ -52,30 +72,39 @@ export const RefundService = {
   },
 
   /**
-   * Mark refund as paid (called by refund worker after external provider returns success)
+   * Mark refund as paid (after external provider confirms)
    */
   async markRefundPaid(refundId: string, providerTxId?: string) {
     return prisma.$transaction(async (tx) => {
+      // --- Update refund status ---
       const r = await tx.refund.update({
         where: { id: refundId },
-        data: { status: "PAID", updatedAt: new Date() }
+        data: { status: "PAID" }
       });
 
-      await tx.ledger.create({
+      if (!r.amount) throw new Error("Refund amount is missing");
+
+      // --- Create LedgerEntry for refund payout ---
+      await tx.ledgerEntry.create({
         data: {
-          bookingId: r.bookingId,
+          ledgerId: crypto.randomUUID(),   // REQUIRED
+          walletId: null,                  // or driver wallet
+          bookingId: r.bookingId ?? undefined,
+          userId: r.userId,
           amount: -r.amount,
-          type: "REFUND",
-          description: `Refund paid (${refundId}) providerTxId=${providerTxId ?? "n/a"}`
+          direction: "DEBIT",
+          reference: `REFUND_PAID_${refundId}`,
+          note: `Refund paid, providerTxId=${providerTxId ?? "n/a"}`
         }
       });
 
-      await tx.outbox.create({
+      // --- Outbox event for reconciliation / notification ---
+      await tx.outboxEvent.create({
         data: {
           aggregateType: "Refund",
           aggregateId: refundId,
           type: "RefundPaid",
-          payload: JSON.stringify({ refundId }),
+          payload: JSON.stringify({ refundId, providerTxId }),
           channel: "pubsub",
           status: "READY"
         }

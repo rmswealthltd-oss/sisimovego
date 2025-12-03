@@ -1,24 +1,37 @@
 "use client";
+
 import React, { useState } from "react";
 import { Api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import PaymentOption from "@/components/PaymentOption";
 
 export default function CheckoutClient({ booking }: { booking: any }) {
-  const [method, setMethod] = useState<"mpesa"|"stripe">("mpesa");
+  const [method, setMethod] = useState<"mpesa" | "stripe">("mpesa");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function start() {
     setLoading(true);
     try {
-      const res = await Api.createCheckout({ bookingId: booking.id, method });
-      if (method === "mpesa") router.push(`/payments/mpesa?checkoutId=${res.checkoutId}`);
-      else if (method === "stripe") {
-        if (res.redirectUrl) window.location.href = res.redirectUrl;
-        else router.push(`/payments/stripe?checkoutId=${res.checkoutId}`);
+      const res = await Api.createCheckout({
+        bookingId: booking.id,
+        method,
+      });
+
+      // MPESA checkout page
+      if (method === "mpesa") {
+        router.push(`/payments/mpesa?checkoutId=${res.checkoutId}`);
       }
-    } catch (e:any) {
+
+      // STRIPE checkout flow
+      else if (method === "stripe") {
+        if (res.redirectUrl) {
+          window.location.href = res.redirectUrl; // Stripe-hosted checkout
+        } else {
+          router.push(`/payments/stripe?checkoutId=${res.checkoutId}`);
+        }
+      }
+    } catch (e: any) {
       alert(e?.message || "Checkout failed");
     } finally {
       setLoading(false);
@@ -27,8 +40,14 @@ export default function CheckoutClient({ booking }: { booking: any }) {
 
   return (
     <div className="bg-white p-4 rounded shadow space-y-4">
-      <div className="text-sm text-gray-500">Booking: {booking.id}</div>
-      <div className="text-lg font-semibold">KES {(booking.totalCents/100).toFixed(2)}</div>
+      <div className="text-sm text-gray-500">
+        Booking: {booking.id}
+      </div>
+
+      {/* FIXED: Use amountCents instead of totalCents */}
+      <div className="text-lg font-semibold">
+        KES {(booking.amountCents / 100).toFixed(2)}
+      </div>
 
       <div className="space-y-2">
         <PaymentOption

@@ -2,24 +2,30 @@
 import prisma from "../../db";
 
 /**
- * Daily settlement: aggregate payouts, produce settlement report (outbox event)
+ * Daily settlement summary:
+ * Aggregates payouts created in the last 24 hours and emits
+ * an Outbox event for the finance settlement processor.
  */
 export async function settlementDaily() {
-  // summarize payouts from previous day
+  // 1️⃣ Calculate "yesterday" cutoff
   const from = new Date();
   from.setDate(from.getDate() - 1);
-  const rows = await prisma.payout.findMany({
-    where: { createdAt: { gte: from } }
+
+  // 2️⃣ Fetch payouts created since yesterday
+  const payouts = await prisma.payout.findMany({
+    where: {
+      createdAt: { gte: from },
+    },
   });
 
+  // 3️⃣ Create Outbox event in correct Prisma schema format
   await prisma.outboxEvent.create({
     data: {
-      aggregateType: "Cron",
-      aggregateId: `settlement_${Date.now()}`,
-      type: "Cron:SettlementDaily",
-      payload: JSON.stringify({ count: rows.length }),
-      channel: "finance",
-      status: "READY"
-    }
+      type: "cron.settlementDaily", // matches your cron naming
+      payload: {
+        totalPayouts: payouts.length,
+        generatedAt: new Date().toISOString(),
+      },
+    },
   });
 }

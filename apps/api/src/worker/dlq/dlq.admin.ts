@@ -2,10 +2,13 @@
 import prisma from "../../db";
 
 /**
- * Reprocess a specific DLQ entry by creating a new outbox row
+ * Reprocess a DLQ entry by pushing a new OutboxEvent.
  */
 export async function adminReprocessDLQ(dlqId: string) {
-  const row = await prisma.deadLetter.findUnique({ where: { id: dlqId } });
+  const row = await prisma.deadLetter.findUnique({
+    where: { id: dlqId },
+  });
+
   if (!row) throw new Error("dlq_not_found");
 
   await prisma.outboxEvent.create({
@@ -13,10 +16,15 @@ export async function adminReprocessDLQ(dlqId: string) {
       aggregateType: "DLQRetry",
       aggregateId: dlqId,
       type: "DLQRetry",
-      payload: JSON.stringify({ dlqId, payload: row.payload }),
       channel: "worker",
-      status: "READY"
-    }
+      status: "READY",
+
+      // JSON field — MUST NOT be string
+      payload: {
+        dlqId,
+        originalPayload: row.payload,
+      },
+    },
   });
 
   return { ok: true };

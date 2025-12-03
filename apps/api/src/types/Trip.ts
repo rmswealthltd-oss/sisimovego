@@ -1,60 +1,72 @@
-// apps/api/transformers/trip.ts
-import type { PrismaClient, Trip as PrismaTrip } from "@prisma/client";
+// apps/api/types/trip.ts
+import type { Trip as PrismaTrip, Booking, Driver, User } from "@prisma/client";
 
+export interface TripView {
+  id: string;
+  origin: string;
+  destination: string;
 
-/**
- * Transform a Prisma Trip record (with includes) into TripView
- *
- * Expected `include` on the prisma query:
- *  include: { driver: { include: { user: true } }, bookings: true }
- *
- * If bookings are not included, bookedSeats will be 0.
- */
+  originLat: number | null;
+  originLng: number | null;
+  destLat: number | null;
+  destLng: number | null;
 
-export function prismaTripToView(trip: PrismaTrip & { bookings?: any[]; driver?: any }): TripView {
-  const bookedSeats = Array.isArray(trip.bookings)
-    ? trip.bookings.reduce((sum, b) => sum + (b.seats || 0), 0)
-    : 0;
+  priceCents: number;
+  pricePerSeat: number;
 
-  // driverName resolved via driver.user.name if available
-  let driverName = "Unknown driver";
-  if (trip.driver && trip.driver.user && trip.driver.user.name) {
-    driverName = trip.driver.user.name;
-  }
+  availableSeats: number;
+  bookedSeats: number;
 
-  return {
-    id: trip.id,
-    origin: trip.origin,
-    destination: trip.destination,
-    originLat: trip.originLat,
-    originLng: trip.originLng,
-    destLat: trip.destLat,
-    destLng: trip.destLng,
-    priceCents: trip.priceCents,
-    pricePerSeat: trip.priceCents / 100,
-    availableSeats: trip.availableSeats,
-    bookedSeats,
-    status: String(trip.status),
-    departureAt: trip.departureAt.toISOString(),
-    createdAt: trip.createdAt.toISOString(),
-    driverId: trip.driverId,
-    driverName,
-    arrivalAt: null,
-  };
+  status: string;
+
+  departureAt: string;
+  createdAt: string;
+
+  driverId: string | null;
+  driverName: string;
 }
 
 /**
- * Example usage inside an API route:
- *
- * const trip = await prisma.trip.findUnique({
- *   where: { id },
- *   include: {
- *     driver: { include: { user: true } },
- *     bookings: true
- *   }
- * });
- *
- * if (!trip) return notFound();
- * const view = prismaTripToView(trip);
- * return res.json(view);
+ * Transform Prisma Trip -> TripView
  */
+export function prismaTripToView(
+  trip: PrismaTrip & {
+    bookings?: (Booking & { seats: number })[];
+    driver?: (Driver & { user: User | null }) | null;
+  }
+): TripView {
+  const bookedSeats = Array.isArray(trip.bookings)
+    ? trip.bookings.reduce((sum, b) => sum + (b.seats ?? 0), 0)
+    : 0;
+
+  const driverName =
+    trip.driver?.user
+      ? `${trip.driver.user.firstName ?? ""} ${trip.driver.user.lastName ?? ""}`.trim()
+      : "Unknown driver";
+
+  return {
+    id: trip.id,
+    origin: trip.fromLocation,
+    destination: trip.toLocation,
+
+    // Lat/Lng not available, default to null
+    originLat: null,
+    originLng: null,
+    destLat: null,
+    destLng: null,
+
+    priceCents: trip.pricePerSeat, // you can multiply by totalSeats if needed
+    pricePerSeat: trip.pricePerSeat,
+
+    availableSeats: trip.availableSeats,
+    bookedSeats,
+
+    status: String(trip.status),
+
+    departureAt: trip.date.toISOString(),
+    createdAt: trip.createdAt.toISOString(),
+
+    driverId: trip.driverId,
+    driverName,
+  };
+}

@@ -1,137 +1,164 @@
 "use client";
 
-// -------------------------------------------------------------
-//  Production-Ready API Client for Next.js
-//  Uses Bearer token stored in localStorage
-// -------------------------------------------------------------
+import {
+  CreateCheckoutInput,
+  CreateCheckoutResponse,
+  Payment,
+} from "../../types/payment";
+import { TripView, BookingView, Role } from "../../types/trip";
+import { storage } from "./storage";
 
-const BASE_URL =
+const RAW_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:5000";
+  "http://localhost:3001";
+const BASE_URL = `${RAW_URL}/api`;
 
-/* ---------------------------------------------------------
-   Helper: token accessor (browser only)
----------------------------------------------------------- */
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+interface RequestOptions {
+  headers?: Record<string, string>;
+  params?: Record<string, any>;
+  body?: any;
 }
 
-/* ---------------------------------------------------------
-   Core request wrapper
----------------------------------------------------------- */
-async function request(
-  method: string,
-  url: string,
-  body?: any,
-  options: { headers?: Record<string, string> } = {}
-) {
-  const token = getToken();
+/** Build query string from params */
+function buildQuery(params: Record<string, any> = {}) {
+  const query = new URLSearchParams();
+  for (const key in params) {
+    const value = params[key];
+    if (value !== undefined && value !== null) {
+      query.append(key, value.toString());
+    }
+  }
+  const str = query.toString();
+  return str ? `?${str}` : "";
+}
 
+/** Main request function */
+async function request<T>(
+  method: ApiMethod,
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const token = storage.get<string>("access"); // automatically read token
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
-
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${url}`, {
+  const url = BASE_URL + path + buildQuery(options.params);
+
+  const res = await fetch(url, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    credentials: "include",
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   let json: any = null;
   try {
     json = await res.json();
-  } catch {
-    json = null;
-  }
+  } catch {}
 
   if (!res.ok) {
-    const msg = json?.message || json?.error || res.statusText;
-    const error = new Error(msg);
-    (error as any).data = json;
-    (error as any).status = res.status;
-    throw error;
+    const err: any = new Error(json?.message || "Request failed");
+    err.status = res.status;
+    err.data = json;
+    throw err;
   }
 
-  return json;
+  return json as T;
 }
 
-/* ---------------------------------------------------------
-   Public API surface
----------------------------------------------------------- */
+/** Exported API methods */
 export const Api = {
-  get(path: string, options: any = {}) {
-    return request("GET", path, undefined, options);
+  request,
+
+  get<T>(path: string, options?: RequestOptions) {
+    return request<T>("GET", path, options);
+  },
+  post<T>(path: string, body?: any, options?: RequestOptions) {
+    return request<T>("POST", path, { ...options, body });
+  },
+  put<T>(path: string, body?: any, options?: RequestOptions) {
+    return request<T>("PUT", path, { ...options, body });
+  },
+  patch<T>(path: string, body?: any, options?: RequestOptions) {
+    return request<T>("PATCH", path, { ...options, body });
+  },
+  del<T>(path: string, options?: RequestOptions) {
+    return request<T>("DELETE", path, options);
   },
 
-  post(path: string, body?: any, options: any = {}) {
-    return request("POST", path, body, options);
+  // --------------------------
+  // Auth
+  // --------------------------
+  login(email: string, password: string) {
+    return this.post<{ token: string; user: any }>("/auth/login", {
+      email,
+      password,
+    });
   },
-
-  put(path: string, body?: any, options: any = {}) {
-    return request("PUT", path, body, options);
+  logout() {
+    return this.post("/auth/logout");
   },
-
-  patch(path: string, body?: any, options: any = {}) {
-    return request("PATCH", path, body, options);
-  },
-
-  delete(path: string, options: any = {}) {
-    return request("DELETE", path, undefined, options);
-  },
-
-  // ---------------- AUTH ----------------
   getMe() {
-    return this.get("/auth/me");
+    return this.get<any>("/auth/me"); // token auto-attached
   },
 
-  // ---------------- BOOKING ----------------
-  createBooking(payload: {
-    tripId: string;
-    seats: number;
-    passengerInfo?: any;
-    promo?: string;
-  }) {
-    return this.post("/bookings/create", payload);
+  // --------------------------
+  // Driver
+  // --------------------------
+  getDriverTrips() {
+    return this.get<TripView[]>("/drivers/trips");
+  },
+  getDriverBookings() {
+    return this.get<BookingView[]>("/drivers/bookings");
+  },
+  getWallet() {
+    return this.get<{ balance: number }>("/drivers/wallet/me");
   },
 
-  getBooking(id: string) {
-    return this.get(`/bookings/${encodeURIComponent(id)}`);
+  // --------------------------
+  // Passenger
+  // --------------------------
+  getMyBookings() {
+    return this.get<BookingView[]>("/passengers/bookings/my");
+  },
+  createBooking(data: { tripId: string; seats?: number }) {
+    return this.post<BookingView>("/passengers/bookings", data);
+  },
+  cancelBooking(bookingId: string, reason?: string) {
+    return this.post<BookingView>("/passengers/bookings/cancel", {
+      bookingId,
+      reason,
+    });
   },
 
-  // ---------------- PROMO ----------------
-  applyPromo(payload: { code: string; tripId?: string; bookingId?: string }) {
-    return this.post("/promos/apply", payload);
+  // --------------------------
+  // Trips
+  // --------------------------
+  getTrips(query?: Record<string, any>) {
+    return this.get<TripView[]>("/trips", { params: query });
+  },
+  postTrip(data: Partial<TripView>) {
+    return this.post<TripView>("/trips", data);
   },
 
-  // ---------------- PAYMENTS ----------------
-  createCheckout(payload: {
-    bookingId: string;
-    method: "mpesa" | "stripe";
-  }) {
-    return this.post("/payments/checkout", payload);
-  },
-
-  // ---------------- TRIPS ----------------
-  getTrip(id: string) {
-    return this.get(`/trips/${id}`);
-  },
-
-  // ---------------- PUSH SUBSCRIPTIONS ----------------
-  saveSubscription(subscription: any) {
-    return this.post("/push/subscribe", { subscription });
-  },
-
-  getSubscriptions() {
-    return this.get("/push/subscriptions");
-  },
-
-  deleteSubscription(idOrEndpoint: string) {
-    return this.delete(
-      `/push/subscriptions/${encodeURIComponent(idOrEndpoint)}`
+  // --------------------------
+  // Payments
+  // --------------------------
+  createCheckout(data: CreateCheckoutInput) {
+    return this.post<CreateCheckoutResponse>(
+      "/passengers/payments/checkout",
+      data
     );
+  },
+  getPayment(id: string) {
+    return this.get<Payment>(`/payments/${id}`);
+  },
+  getPaymentsForBooking(bookingId: string) {
+    return this.get<Payment[]>(`/passengers/bookings/${bookingId}/payments`);
   },
 };

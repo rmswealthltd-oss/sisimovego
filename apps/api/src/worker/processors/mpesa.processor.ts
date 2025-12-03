@@ -1,36 +1,37 @@
-// src/worker/processors/mpesa.processor.ts
 import prisma from "../../db";
 
 /**
- * job.data: { providerTxId, payload }
- * This processor reconciles MPESA callback messages that were queued in Outbox.
+ * Handles MPESA callback events from Outbox.
+ * job.data: { providerTxId: string; payload: any }
  */
-export async function processMpesaCallbackJob(
-  job: { data: { providerTxId: string; payload: any } } | any
-) {
+export async function processMpesaCallbackJob(job: any) {
   const data = job.data ?? job;
   const { providerTxId, payload } = data;
 
   try {
+    // Create callback row (idempotent by providerTxId if unique)
     await prisma.paymentCallback.create({
       data: {
-        provider: "MPESA",           // ✅ REQUIRED FIELD
+        provider: "MPESA",
         providerTxId,
         rawPayload: payload,
-        status: "RECEIVED"
-      }
-    }).catch(() => null);
+        status: "RECEIVED",
+      },
+    });
 
     return true;
+
   } catch (err: any) {
     console.error("processMpesaCallbackJob error", err);
+
+    // DLQ — matches schema: payload + reason only
     await prisma.dlq.create({
       data: {
-        source: "MpesaCallback",
         payload: data,
-        error: String(err?.message ?? err)
-      }
+        reason: String(err?.message ?? err),
+      },
     });
+
     throw err;
   }
 }

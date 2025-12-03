@@ -1,93 +1,97 @@
 // src/modules/finance/reconciliation.service.ts
 import prisma from "../../db";
 
-/**
- * Basic reconciliation service:
- * - Finds ledger entries of type BOOKING_PAYMENT with no matching PaymentCallback reference.
- * - Attempts to match by bookingId -> PaymentCallback.providerTxId or by amount+date window.
- * - Marks ledger rows as reconciled via creating a Reconciliation row (lightweight).
- *
- * Note: Add a Reconciliation model to prisma if you want to persist matches; for now we use Outbox + DLQ records.
- */
-
 export const ReconciliationService = {
-  /**
-   * Scan and attempt automatic reconciliation for a date range.
-   * Returns a report object.
-   */
   async reconcileBookings({ from, to }: { from?: string; to?: string }) {
-    const fromDate = from ? new Date(from) : new Date(Date.now() - 1000 * 60 * 60 * 24 * 7); // default 7d
+    const fromDate = from ? new Date(from) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const toDate = to ? new Date(to) : new Date();
 
-    // fetch ledger booking payment entries in window
-    const entries = await prisma.ledger.findMany({
+    // Fetch LedgerEntries whose Ledger.type is BOOKING_PAYMENT
+    const entries = await prisma.ledgerEntry.findMany({
       where: {
-        type: "BOOKING_PAYMENT",
-        createdAt: { gte: fromDate, lte: toDate }
+        ledger: { type: "BOOKING_PAYMENT" }, // filter via relation
+        createdAt: { gte: fromDate, lte: toDate },
       },
-      include: { booking: true }
+      include: { booking: true }, // include booking if relation exists
+      orderBy: { createdAt: "desc" },
     });
 
-    const report: Array<any> = [];
+    const report: any[] = [];
 
     for (const e of entries) {
       try {
-        const bookingId = e.bookingId;
+        const booking = e.booking ?? null;
         let matched = null;
 
-        if (bookingId) {
-          // find payment callback matching booking.providerTxId OR paymentCallback with bookingId in rawPayload
-          const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-          if (booking?.providerTxId) {
-            matched = await prisma.paymentCallback.findUnique({ where: { providerTxId: booking.providerTxId } }).catch(() => null);
-          }
-          if (!matched) {
-            // try find by amount and close timestamp
+        if (booking?.providerTxId) {
+          matched = await prisma.paymentCallback.findFirst({
+            where: { providerTxId: booking.providerTxId },
+          });
+        }
+
+        if (!matched && booking?.id) {
+          try {
             matched = await prisma.paymentCallback.findFirst({
-              where: {
-                rawPayload: { path: [] }, // placeholder: fallback to scanning rawPayload in worker if necessary
-              }
-            }).catch(() => null);
+              where: { rawPayload: { path: ["bookingId"], equals: booking.id } },
+            });
+          } catch {
+            // ignore older prisma/rawPayload failures
           }
         }
 
+        if (!matched) {
+          const windowMs = 5 * 60 * 1000; // 5 mins
+          matched = await prisma.paymentCallback.findFirst({
+            where: {
+              createdAt: {
+                gte: new Date(e.createdAt.getTime() - windowMs),
+                lte: new Date(e.createdAt.getTime() + windowMs),
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          });
+        }
+
         if (matched) {
-          // create an outbox entry to mark reconciliation
-          await prisma.outbox.create({
+          await prisma.outboxEvent.create({
             data: {
               aggregateType: "Reconciliation",
               aggregateId: e.id,
               type: "LedgerReconciled",
-              payload: JSON.stringify({ ledgerId: e.id, paymentCallbackId: matched.id }),
+              payload: JSON.stringify({ ledgerEntryId: e.id, paymentCallbackId: matched.id }),
               channel: "pubsub",
-              status: "READY"
-            }
+              status: "READY",
+            },
           });
-          report.push({ ledgerId: e.id, matched: true, paymentCallbackId: matched.id });
+
+          report.push({ ledgerEntryId: e.id, matched: true, paymentCallbackId: matched.id });
         } else {
-          report.push({ ledgerId: e.id, matched: false });
+          report.push({ ledgerEntryId: e.id, matched: false });
         }
       } catch (err: any) {
-        report.push({ ledgerId: e.id, error: err.message });
+        report.push({ ledgerEntryId: e.id, error: String(err) });
       }
     }
 
     return { from: fromDate.toISOString(), to: toDate.toISOString(), total: entries.length, report };
   },
 
-  /**
-   * Produce a simple unreconciled report (ledger entries without matching payment callbacks).
-   */
   async findUnreconciled({ limit = 100 }: { limit?: number }) {
-    // ledger entries of type BOOKING_PAYMENT where booking.amountPaid > 0 but no booking payment callback exists
-    const rows = await prisma.$queryRaw<any>`
-      SELECT l.* FROM "Ledger" l
-      LEFT JOIN "Booking" b ON b.id = l."bookingId"
-      LEFT JOIN "PaymentCallback" p ON p."providerTxId" = b."providerTxId"
-      WHERE l.type = 'BOOKING_PAYMENT' AND p.id IS NULL
-      ORDER BY l."createdAt" DESC
-      LIMIT ${limit}
-    `;
-    return rows;
-  }
+    const entries = await prisma.ledgerEntry.findMany({
+      where: { ledger: { type: "BOOKING_PAYMENT" } },
+      include: { booking: true },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+
+    return entries.map((e) => {
+      const booking = e.booking ?? null;
+      return {
+        ledgerEntryId: e.id,
+        createdAt: e.createdAt,
+        bookingId: booking?.id ?? null,
+        bookingProviderTxId: booking?.providerTxId ?? null,
+      };
+    });
+  },
 };

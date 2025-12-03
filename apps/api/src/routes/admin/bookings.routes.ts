@@ -1,3 +1,4 @@
+// src/routes/admin/bookings.routes.ts
 import { Router } from "express";
 import prisma from "../../db";
 import { asyncHandler } from "../../middleware/asyncHandler";
@@ -11,7 +12,7 @@ router.get(
   requireAdmin,
   asyncHandler(async (_, res) => {
     const bookings = await prisma.booking.findMany({
-      include: { user: true, trip: true },
+      include: { passenger: true, trip: true }, // <-- corrected
       orderBy: { createdAt: "desc" },
     });
     res.json(bookings);
@@ -25,7 +26,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
-      include: { user: true, trip: true },
+      include: { passenger: true, trip: true }, // <-- corrected
     });
 
     if (!booking) return res.status(404).json({ message: "Booking not found" });

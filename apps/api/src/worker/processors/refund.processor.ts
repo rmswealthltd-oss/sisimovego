@@ -1,52 +1,61 @@
-// src/worker/processors/refund.processor.ts
 import prisma from "../../db";
 import { sendMpesaPayout } from "../../lib/sendMpesaPay";
 
-export async function processRefundJob(job: { data: { refundId: string; bookingId: string; amount: number; phone?: string } } | any) {
+/**
+ * job.data: { refundId, bookingId, amount, phone? }
+ * amount = cents (integer)
+ */
+export async function processRefundJob(job: any) {
   const data = job.data ?? job;
   const { refundId, bookingId, amount, phone } = data;
 
-  const refund = await prisma.refund.findUnique({ where: { id: refundId } });
+  // 1️⃣ Ensure refund exists
+  const refund = await prisma.refund.findUnique({
+    where: { id: refundId },
+  });
   if (!refund) throw new Error("refund_not_found");
 
   try {
-    // get passenger phone if not provided
-    if (!phone) {
+    // 2️⃣ Determine phone number (prefer job.phone, else passenger.phone)
+    let phoneToUse = phone;
+
+    if (!phoneToUse) {
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        include: { user: true }, // FIXED
+        include: { passenger: true },      // ✅ FIXED relation
       });
 
-      if (!booking || !booking.user?.phone) {
+      if (!booking || !booking.passenger?.phone) {
         throw new Error("passenger_phone_not_found");
       }
 
-      data.phone = booking.user.phone;
+      phoneToUse = booking.passenger.phone;
     }
 
-    // Send Mpesa payout (convert from cents)
+    // 3️⃣ Send M-PESA payout
     const res = await sendMpesaPayout({
-      phone: data.phone,
-      amount: amount / 100,
+      phone: phoneToUse,
+      amount: amount / 100,  // cents → KES
     });
 
-    // mark refund paid
+    // 4️⃣ Update refund status
     await prisma.refund.update({
       where: { id: refundId },
-      data: { status: "PAID" },
+      data: { status: "PAID" },     // must match your Prisma enum
     });
 
-    // ledger entry — FIXED field name: amountCents
-    await prisma.ledger.create({
-      data: {
-        bookingId: bookingId ?? null,
-        amountCents: -amount, // FIXED
-        type: "REFUND",
-        description: `Refund executed ${refundId}, providerTx=${res.providerTxId}`,
-      },
-    });
+    // 5️⃣ Ledger entry (bookingId exists in your schema)
+   await prisma.ledger.create({
+  data: {
+    type: "REFUND",
+    entityType: "BOOKING",
+    entityId: bookingId,
+    amount: -amount, // cents → negative for refund
+    description: `Refund executed: ${refundId}, providerTx=${res.providerTxId}`,
+  },
+});
 
-    // outbox: RefundPaid
+    // 6️⃣ Outbox: RefundPaid
     await prisma.outboxEvent.create({
       data: {
         aggregateType: "Refund",
@@ -65,11 +74,11 @@ export async function processRefundJob(job: { data: { refundId: string; bookingI
   } catch (err: any) {
     console.error("processRefundJob error", err);
 
+    // DLQ schema only supports: payload + reason
     await prisma.dlq.create({
       data: {
-        source: "Refund",
         payload: data,
-        error: String(err?.message ?? err),
+        reason: String(err?.message ?? err),  // ✅ FIXED: no source/error fields
       },
     });
 

@@ -17,7 +17,8 @@ router.get(
     const drivers = await prisma.driver.findMany({
       orderBy: { createdAt: "desc" },
       include: {
-        vehicle: true,
+        user: true, // include driver user info
+        wallet: true, // include wallet info if needed
         _count: { select: { trips: true } },
       },
     });
@@ -28,7 +29,7 @@ router.get(
 
 /**
  * GET /api/admin/drivers/:id
- * Get driver profile, vehicle, and trip history
+ * Get driver profile and trip history
  */
 router.get(
   "/:id",
@@ -37,8 +38,9 @@ router.get(
     const driver = await prisma.driver.findUnique({
       where: { id: req.params.id },
       include: {
-        vehicle: true,
+        user: true, // include driver user info
         trips: true,
+        wallet: true, // optional: include wallet info
       },
     });
 
@@ -58,6 +60,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const trips = await prisma.trip.findMany({
       where: { driverId: req.params.id },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json({ ok: true, trips });

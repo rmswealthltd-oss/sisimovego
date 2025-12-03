@@ -3,7 +3,6 @@ import { Router } from "express";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
 import { FraudEngineService } from "../../modules/fraud/fraudEngine.service";
-import prisma from "../../db";
 
 const router = Router();
 
@@ -16,7 +15,13 @@ router.get(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const { refundId } = req.params;
+
+    if (!refundId) {
+      return res.status(400).json({ error: "refundId is required" });
+    }
+
     const result = await FraudEngineService.evaluateRefund(refundId);
+
     return res.json(result);
   })
 );
@@ -30,8 +35,17 @@ router.post(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const { refundId } = req.body;
+
+    if (!refundId) {
+      return res.status(400).json({ error: "refundId is required" });
+    }
+
     const output = await FraudEngineService.runRulesAndGenerateCase(refundId);
-    return res.json({ ok: true, output });
+
+    return res.json({
+      ok: true,
+      output,
+    });
   })
 );
 

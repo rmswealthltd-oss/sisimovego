@@ -20,7 +20,7 @@ export const TripStatusAuditService = {
       });
     } catch (e) {
       // model might not exist — fallback to outbox
-      await prisma.outbox.create({
+      await prisma.outboxEvent.create({
         data: {
           aggregateType: "TripStatusAudit",
           aggregateId: tripId,
@@ -42,7 +42,7 @@ export const TripStatusAuditService = {
       });
     } catch (e) {
       // model missing -> try to reconstruct from outbox events (best-effort)
-      const rows = await prisma.outbox.findMany({
+      const rows = await prisma.outboxEvent.findMany({
         where: { aggregateType: "Trip", aggregateId: tripId },
         orderBy: { createdAt: "asc" }
       });

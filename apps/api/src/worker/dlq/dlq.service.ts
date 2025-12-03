@@ -1,18 +1,17 @@
 // apps/api/src/worker/dlq/dlq.service.ts
-
 import prisma from "../../db";
 import { logger } from "../../lib/logger";
 
 export class DLQService {
   /**
-   * Move a failed outbox event to the Dead Letter Queue.
+   * Move a failed outbox event into DLQ for later inspection.
    */
   static async sendToDLQ(event: any, errorMessage: string) {
     try {
       await prisma.deadLetter.create({
         data: {
-          source: event.type,
-          payload: event.payload,
+          source: event.type ?? "unknown",
+          payload: event.payload, // JSON column
           error: errorMessage ?? "Unknown error",
         },
       });
@@ -26,7 +25,7 @@ export class DLQService {
   }
 
   /**
-   * Requeue an event from DLQ back into Outbox.
+   * Requeue a DLQ entry back into the Outbox for retry.
    */
   static async requeue(dlqId: string) {
     const dlq = await prisma.deadLetter.findUnique({
@@ -37,11 +36,14 @@ export class DLQService {
 
     await prisma.outboxEvent.create({
       data: {
-        aggregateType: "DLQ",
-        aggregateId: `dlq-retry-${Date.now()}`,
-        type: dlq.source,
-        payload: dlq.payload,
-        status: "READY"
+        aggregateType: "DLQRetry",
+        type: dlq.source ?? "unknown",
+        payload: {
+          dlqId: dlq.id,
+          original: dlq.payload,
+        },
+        channel: "dlq",
+        status: "READY",
       },
     });
 

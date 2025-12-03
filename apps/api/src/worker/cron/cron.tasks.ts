@@ -3,103 +3,98 @@
 import { logger } from "../../lib/logger";
 import prisma from "../../db";
 
-// Import task-specific scripts
+// Task scripts
 import { autoCompleteTrips } from "./autoCompleteTrips";
 import { nightlyFraudEmail } from "./nightlyFraudEmail";
 import { settlementDaily } from "./settlementDaily";
 
 export class CronTasks {
-  private static tasksStarted = false;
+  private static started = false;
 
   /**
-   * Start scheduled cron jobs
+   * Start all cron jobs
    */
   static startAll() {
-    if (this.tasksStarted) return;
-    this.tasksStarted = true;
+    if (this.started) return;
+    this.started = true;
 
-    logger.info("[CRON] Starting scheduled jobs...");
+    logger.info("[CRON] Initializing scheduled tasks...");
 
-    // 1️⃣ Auto-complete stale trips every 5 minutes
+    // 1️⃣ Auto-complete stale trips — every 5 minutes
     setInterval(async () => {
       try {
         await autoCompleteTrips();
       } catch (err: any) {
-        logger.error(`[CRON autoCompleteTrips] ${err?.message}`);
+        logger.error(`[CRON autoCompleteTrips] ${err.message}`);
       }
     }, 5 * 60 * 1000);
 
-    // 2️⃣ Nightly fraud email summary @ 23:59
-    this.runDailyAt("23:59", async () => {
-      try {
-        await nightlyFraudEmail();
-      } catch (err: any) {
-        logger.error(`[CRON nightlyFraudEmail] ${err?.message}`);
-      }
-    });
+    // 2️⃣ Nightly fraud report — 23:59
+    this.runDailyAt("23:59", nightlyFraudEmail, "nightlyFraudEmail");
 
-    // 3️⃣ Daily settlements @ 02:00
-    this.runDailyAt("02:00", async () => {
-      try {
-        await settlementDaily();
-      } catch (err: any) {
-        logger.error(`[CRON settlementDaily] ${err?.message}`);
-      }
-    });
+    // 3️⃣ Payout settlement batch — 02:00
+    this.runDailyAt("02:00", settlementDaily, "settlementDaily");
 
-    // 4️⃣ Periodic cleanup of old outbox + dead letters (every hour)
+    // 4️⃣ Cleanup outbox + DLQ — hourly
     setInterval(async () => {
       try {
         await this.cleanupOldRecords();
       } catch (err: any) {
-        logger.error(`[CRON cleanup] ${err?.message}`);
+        logger.error(`[CRON cleanupOldRecords] ${err.message}`);
       }
     }, 60 * 60 * 1000);
 
-    logger.info("[CRON] All jobs started");
+    logger.info("[CRON] All scheduled tasks started");
   }
 
   /**
-   * Run a task every day at a specific time — "HH:MM"
+   * Runs a given function once per day at "HH:MM"
    */
-  private static runDailyAt(time: string, task: () => Promise<void>) {
-    const [hour, minute] = time.split(":").map((s) => parseInt(s));
+  private static runDailyAt(
+    time: string,
+    taskFn: () => Promise<any>,
+    label: string
+  ) {
+    const [hour, minute] = time.split(":").map((n) => parseInt(n, 10));
 
-    const check = async () => {
+    const checker = async () => {
       const now = new Date();
       if (now.getHours() === hour && now.getMinutes() === minute) {
-        logger.info(`[CRON] Running daily task @ ${time}`);
-        await task();
+        logger.info(`[CRON] Running daily task '${label}' @ ${time}`);
+        try {
+          await taskFn();
+        } catch (err: any) {
+          logger.error(`[CRON ${label}] ${err.message}`);
+        }
       }
     };
 
-    // Check every 30 seconds
-    setInterval(check, 30 * 1000);
+    // Check every 30s
+    setInterval(checker, 30 * 1000);
   }
 
   /**
-   * Cleanup old records (Outbox, DLQ)
+   * Deletes old Outbox + DLQ records according to Prisma schema
    */
   private static async cleanupOldRecords() {
     logger.info("[CRON] Running cleanupOldRecords()");
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days
-
-    const deletedOutbox = await prisma.outboxEvent.deleteMany({
+    const outbox = await prisma.outboxEvent.deleteMany({
       where: {
         processed: true,
         createdAt: { lt: cutoff },
       },
     });
 
-    const deletedDLQ = await prisma.deadLetter.deleteMany({
+    const dead = await prisma.deadLetter.deleteMany({
       where: {
         createdAt: { lt: cutoff },
       },
     });
 
     logger.info(
-      `[CRON CLEANUP] Removed ${deletedOutbox.count} old outbox events, ${deletedDLQ.count} DLQ entries`
+      `[CRON CLEANUP] Deleted ${outbox.count} outbox events, ${dead.count} dead letters`
     );
   }
 }

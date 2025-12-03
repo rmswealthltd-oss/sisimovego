@@ -13,7 +13,7 @@ export const SettingsService = {
       return cache;
     }
 
-    const rows = await prisma.setting.findMany();
+    const rows = await prisma.systemSetting.findMany();
     cache = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     cacheLoadedAt = now;
     return cache;
@@ -25,7 +25,7 @@ export const SettingsService = {
   },
 
   async set(key: string, value: string) {
-    const updated = await prisma.setting.upsert({
+    const updated = await prisma.systemSetting.upsert({
       where: { key },
       update: { value },
       create: { key, value },

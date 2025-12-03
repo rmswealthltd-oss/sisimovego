@@ -1,8 +1,8 @@
-// src/routes/fraud/fraudScoreByRefund.route.ts
 import { Router } from "express";
 import { requireAdmin } from "../../middleware/requireAdmin";
 import { asyncHandler } from "../../middleware/asyncHandler";
 import { FraudScoreService } from "../../modules/fraud/fraudScore.service";
+import prisma from "../../db"; // <-- your Prisma client
 
 const router = Router();
 
@@ -13,8 +13,16 @@ router.get(
   "/:refundId",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const score = await FraudScoreService.computeScore(req.params.refundId);
-    return res.json({ refundId: req.params.refundId, score });
+    const { refundId } = req.params;
+
+    // Pass prisma client as second argument
+    const result = await FraudScoreService.computeScore(refundId, prisma);
+
+    return res.json({
+      refundId,
+      score: result.score,
+      eventCount: result.eventCount,
+    });
   })
 );
 

@@ -1,56 +1,57 @@
-// src/worker/index.ts
+// apps/api/src/worker/index.ts
+
 import { runOutboxLoop } from "../outbox/outbox.runner";
-import { env } from "./env";
 
 const PARALLEL_LOOPS = Number(process.env.WORKER_LOOPS ?? 2);
 const BATCH_SIZE = Number(process.env.WORKER_BATCH_SIZE ?? 10);
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 1000);
 
-const loops: Promise<void>[] = [];
 let stopping = false;
 
-async function startLoop(id: number) {
-  console.log(`worker loop ${id} starting`);
+async function startWorkerLoop(id: number) {
+  console.log(`[worker] loop ${id} starting`);
+
   while (!stopping) {
     try {
-      await runOutboxLoop({ batchSize: BATCH_SIZE, intervalMs: INTERVAL_MS });
-      // runOutboxLoop never returns (in current impl) — we actually want a single poller instance here
-      // To keep things simple we will break; each loop runs its own pollOnce cycle inside runOutboxLoop
-      return;
+      // Run a *single poll* cycle (pollOnce)
+      await runOutboxLoop({
+        batchSize: BATCH_SIZE,
+        intervalMs: INTERVAL_MS,
+      });
+
+      // Add a delay between cycles
+      await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS));
     } catch (err: any) {
-      console.error(`worker loop ${id} error`, err);
-      await new Promise((r) => setTimeout(r, 2000));
+      console.error(`[worker] loop ${id} error:`, err);
+      // Avoid a tight crash loop
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
+
+  console.log(`[worker] loop ${id} stopped`);
 }
 
 async function main() {
-  console.log("Worker main starting with", PARALLEL_LOOPS, "parallel loops");
-  // Start multiple independent pollers (safe because poller uses FOR UPDATE SKIP LOCKED)
+  console.log(`[worker] starting with ${PARALLEL_LOOPS} parallel loops`);
+
   for (let i = 0; i < PARALLEL_LOOPS; i++) {
-    // Each loop runs its own continuous runner
-    (async () => {
-      try {
-        await runOutboxLoop({ batchSize: BATCH_SIZE, intervalMs: INTERVAL_MS });
-      } catch (err) {
-        console.error("runOutboxLoop stopped", err);
-      }
-    })();
+    startWorkerLoop(i).catch((err) => {
+      console.error(`[worker] loop ${i} crashed`, err);
+    });
   }
 }
 
 process.on("SIGINT", () => {
-  console.log("Worker stopping (SIGINT)...");
+  console.log("[worker] stopping (SIGINT)...");
   stopping = true;
-  process.exit(0);
 });
+
 process.on("SIGTERM", () => {
-  console.log("Worker stopping (SIGTERM)...");
+  console.log("[worker] stopping (SIGTERM)...");
   stopping = true;
-  process.exit(0);
 });
 
 main().catch((err) => {
-  console.error("Worker crashed", err);
+  console.error("[worker] fatal error:", err);
   process.exit(1);
 });

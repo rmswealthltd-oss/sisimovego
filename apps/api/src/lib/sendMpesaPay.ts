@@ -1,13 +1,15 @@
 // src/lib/sendMpesaPay.ts
-import axios from "axios";
-import { env } from "../env";
 
 /**
  * Placeholder: Implement real Mpesa STK Push or B2C using credentials.
  * For now returns a fake providerTxId for dev.
  */
-export async function sendMpesaSTK({ phone, amount, accountRef }: { phone: string; amount: number; accountRef?: string }) {
-  // In production call Safaricom API
+
+export async function sendMpesaSTK({
+  phone: _phone,
+  amount: _amount,
+  accountRef: _accountRef
+}: { phone: string; amount: number; accountRef?: string }) {
   return {
     provider: "MPESA",
     providerTxId: `MPESA-STK-${Date.now()}`,
@@ -16,8 +18,10 @@ export async function sendMpesaSTK({ phone, amount, accountRef }: { phone: strin
   };
 }
 
-export async function sendMpesaPayout({ phone, amount }: { phone: string; amount: number }) {
-  // Placeholder for B2C payouts
+export async function sendMpesaPayout({
+  phone: _phone,
+  amount: _amount
+}: { phone: string; amount: number }) {
   return {
     provider: "MPESA",
     providerTxId: `MPESA-PAY-${Date.now()}`,

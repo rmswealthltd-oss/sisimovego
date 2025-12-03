@@ -1,47 +1,67 @@
-// src/modules/driver/driver.service.ts
 import prisma from "../../db";
-import bcrypt from "bcrypt";
+import _bcrypt from "bcrypt";
 
 export const DriverService = {
-  async createDriver(data: {
-    phone: string;
-    name: string;
-    password: string;
-    vehicleModel?: string;
-    vehiclePlate?: string;
-  }) {
-    const hashed = await bcrypt.hash(data.password, 10);
-    return prisma.user.create({
-      data: {
-        phone: data.phone,
-        name: data.name,
-        role: "driver",
-        password: hashed,
-        vehicleModel: data.vehicleModel ?? null,
-        vehiclePlate: data.vehiclePlate ?? null
-      }
+  /**
+   * Automatically create driver record when license becomes VERIFIED.
+   */
+  async ensureDriverRecord(userId: string) {
+    return prisma.driver.upsert({
+      where: { userId },
+      update: {},
+      create: { userId }
     });
   },
 
-  async getDriver(driverId: string) {
-    return prisma.user.findUnique({
-      where: { id: driverId },
+  /**
+   * System step: mark license as verified → create Driver row (if missing)
+   */
+  async verifyDriverLicense(userId: string) {
+    // Set user license verified
+    await prisma.user.update({
+      where: { id: userId },
+      data: { driverLicenseStatus: "APPROVED" }
+    });
+
+    // Ensure Driver record exists
+    return this.ensureDriverRecord(userId);
+  },
+
+  /**
+   * Admin or automated verification of the Driver profile.
+   * Required to post trips.
+   */
+  async setDriverVerified(userId: string, verified: boolean) {
+    const driver = await prisma.driver.findUnique({ where: { userId } });
+    if (!driver) throw new Error("driver_not_found");
+
+    return prisma.driver.update({
+      where: { userId },
+      data: { verified }
+    });
+  },
+
+  /**
+   * Get driver profile with user & trips.
+   */
+  async getDriver(userId: string) {
+    return prisma.driver.findUnique({
+      where: { userId },
       include: {
-        trips: true
+        user: true,
+        trips: true,
+        wallet: true,
+        payouts: true,
       }
     });
   },
 
-  async updateDriver(driverId: string, data: any) {
-    return prisma.user.update({
-      where: { id: driverId },
-      data
-    });
-  },
-
+  /**
+   * List all drivers.
+   */
   async listDrivers() {
-    return prisma.user.findMany({
-      where: { role: "driver" },
+    return prisma.driver.findMany({
+      include: { user: true },
       orderBy: { createdAt: "desc" },
       take: 200
     });

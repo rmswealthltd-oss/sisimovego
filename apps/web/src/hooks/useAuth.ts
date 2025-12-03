@@ -1,19 +1,29 @@
+// apps/web/src/hooks/useAuth.ts
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Api } from "@/lib/api";
 import { storage } from "@/lib/storage";
-import { useRouter } from "next/navigation";
-import { User } from "@/lib/User";
+import { User } from "../../types/user";
 
 interface UseAuthResult {
   user: User | null;
   loading: boolean;
   token: string | null;
-  login: (_email: string, _password: string) => Promise<boolean>;
-  register: (_data: { name: string; email: string; password: string }) => Promise<boolean>;
+
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (data: RegisterInput) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  setUser: (u: User | null) => void;
+}
+
+interface RegisterInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
 }
 
 export function useAuth(): UseAuthResult {
@@ -23,20 +33,20 @@ export function useAuth(): UseAuthResult {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ------------------------------------------
-     Load token on mount
-  ------------------------------------------- */
+  /* ----------------------------------------
+     Load token on first page load
+  ----------------------------------------- */
   useEffect(() => {
-    const stored = storage.get<string>("token");  // <-- FIXED
-    if (stored) {
-      setToken(stored);
+    const savedToken = storage.get<string>("token");
+    if (savedToken) {
+      setToken(savedToken);
     }
     setLoading(false);
   }, []);
 
-  /* ------------------------------------------
-     Refresh user when token changes
-  ------------------------------------------- */
+  /* ----------------------------------------
+     Automatically refresh user when token changes
+  ----------------------------------------- */
   useEffect(() => {
     if (!token) {
       setUser(null);
@@ -45,92 +55,106 @@ export function useAuth(): UseAuthResult {
     refreshUser();
   }, [token]);
 
-  /* ------------------------------------------
-     Fetch authenticated user
-  ------------------------------------------- */
+  /* ----------------------------------------
+     Refresh /auth/me
+  ----------------------------------------- */
   const refreshUser = useCallback(async () => {
     if (!token) return;
 
     try {
-      const data = await Api.get("/auth/me", {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await Api.get<{ user: User }>("/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      setUser(data);
+      const u = res.user;
+
+      setUser({
+        ...u,
+        fullName: `${u.firstName} ${u.lastName}`,
+      });
     } catch (err) {
-      console.warn("Failed to refresh user:", err);
+      console.error("refreshUser failed", err);
       logout();
     }
   }, [token]);
 
-  /* ------------------------------------------
-     LOGIN
-  ------------------------------------------- */
-  const login = async (_email: string, _password: string): Promise<boolean> => {
+  /* ----------------------------------------
+     Login
+  ----------------------------------------- */
+  const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
-
     try {
-      const data = await Api.post("/auth/login", {
-        email: _email,
-        password: _password
+      const { token: newToken, user: u } = await Api.post<{
+        token: string;
+        user: User;
+      }>("/auth/login", { email, password });
+
+      storage.set("token", newToken);
+      setToken(newToken);
+
+      setUser({
+        ...u,
+        fullName: `${u.firstName} ${u.lastName}`,
       });
 
-      storage.set("token", data.token);
-      setToken(data.token);
-      router.push("/profile");
-
+      router.replace("/dashboard");
       return true;
     } catch (err) {
-      console.error("Login error:", err);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  /* ------------------------------------------
-     REGISTER
-  ------------------------------------------- */
-  const register = async (body: {
-    name: string;
-    email: string;
-    password: string;
-  }): Promise<boolean> => {
+  /* ----------------------------------------
+     Register
+  ----------------------------------------- */
+  const register = async (data: RegisterInput): Promise<boolean> => {
     setLoading(true);
-
     try {
-      const data = await Api.post("/auth/register", body);
+      const { token: newToken, user: u } = await Api.post<{
+        token: string;
+        user: User;
+      }>("/auth/register", data);
 
-      storage.set("token", data.token);
-      setToken(data.token);
-      router.push("/profile");
+      storage.set("token", newToken);
+      setToken(newToken);
 
+      setUser({
+        ...u,
+        fullName: `${u.firstName} ${u.lastName}`,
+      });
+
+      router.replace("/dashboard");
       return true;
-    } catch (err) {
-      console.error("Registration error:", err);
+    } catch {
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  /* ------------------------------------------
-     LOGOUT
-  ------------------------------------------- */
+  /* ----------------------------------------
+     Logout
+  ----------------------------------------- */
   const logout = () => {
     storage.remove("token");
     setToken(null);
     setUser(null);
-    router.push("/auth/login");
+    router.replace("/auth/login");
   };
 
+  /* ----------------------------------------
+     Return hook state
+  ----------------------------------------- */
   return {
     user,
-    loading,
     token,
+    loading,
     login,
     register,
     logout,
-    refreshUser
+    refreshUser,
+    setUser,
   };
 }

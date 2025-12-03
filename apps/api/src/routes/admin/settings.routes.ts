@@ -11,7 +11,7 @@ router.get(
   "/",
   requireAdmin,
   asyncHandler(async (_, res) => {
-    const settings = await prisma.setting.findMany();
+    const settings = await prisma.systemSetting.findMany();
     res.json(settings);
   })
 );
@@ -24,7 +24,7 @@ router.put(
     const { key } = req.params;
     const { value } = req.body;
 
-    const updated = await prisma.setting.upsert({
+    const updated = await prisma.systemSetting.upsert({
       where: { key },
       update: { value },
       create: { key, value },

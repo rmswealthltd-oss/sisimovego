@@ -1,4 +1,3 @@
-// src/routes/admin/users.routes.ts
 import { Router } from "express";
 import prisma from "../../db";
 import { requireAdmin } from "../../middleware/requireAdmin";
@@ -6,10 +5,7 @@ import { asyncHandler } from "../../middleware/asyncHandler";
 
 const router = Router();
 
-/**
- * GET /api/admin/users
- * List all users
- */
+// GET /api/admin/users
 router.get(
   "/",
   requireAdmin,
@@ -18,8 +14,8 @@ router.get(
       orderBy: { createdAt: "desc" },
       include: {
         driver: true,
-        passenger: true,
-        _count: { select: { trips: true } },
+        bookings: true, // trips where user is passenger
+        _count: { select: { tripsPosted: true } }, // trips posted by user
       },
     });
 
@@ -27,10 +23,7 @@ router.get(
   })
 );
 
-/**
- * GET /api/admin/users/:id
- * Get user profile + trips
- */
+// GET /api/admin/users/:id
 router.get(
   "/:id",
   requireAdmin,
@@ -39,8 +32,8 @@ router.get(
       where: { id: req.params.id },
       include: {
         driver: true,
-        passenger: true,
-        trips: true,
+        bookings: true,
+        tripsPosted: true,
       },
     });
 
@@ -50,15 +43,13 @@ router.get(
   })
 );
 
-/**
- * GET /api/admin/users/:id/trips
- */
+// GET /api/admin/users/:id/trips
 router.get(
   "/:id/trips",
   requireAdmin,
   asyncHandler(async (req, res) => {
     const trips = await prisma.trip.findMany({
-      where: { userId: req.params.id },
+      where: { ownerId: req.params.id },
       orderBy: { createdAt: "desc" },
     });
 
@@ -66,15 +57,12 @@ router.get(
   })
 );
 
-/**
- * PUT /api/admin/users/:id
- * Update user (name, email, phone)
- */
+// PUT /api/admin/users/:id
 router.put(
   "/:id",
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { name, email, phone } = req.body;
+    const { firstName, middleName, lastName, email, phone } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: req.params.id },
@@ -84,7 +72,9 @@ router.put(
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
-        name: name ?? user.name,
+        firstName: firstName ?? user.firstName,
+        middleName: middleName ?? user.middleName,
+        lastName: lastName ?? user.lastName,
         email: email ?? user.email,
         phone: phone ?? user.phone,
       },
@@ -94,9 +84,7 @@ router.put(
   })
 );
 
-/**
- * DELETE /api/admin/users/:id
- */
+// DELETE /api/admin/users/:id
 router.delete(
   "/:id",
   requireAdmin,
@@ -114,9 +102,7 @@ router.delete(
   })
 );
 
-/**
- * POST /api/admin/users/:id/suspend
- */
+// POST /api/admin/users/:id/suspend
 router.post(
   "/:id/suspend",
   requireAdmin,
@@ -135,9 +121,7 @@ router.post(
   })
 );
 
-/**
- * POST /api/admin/users/:id/activate
- */
+// POST /api/admin/users/:id/activate
 router.post(
   "/:id/activate",
   requireAdmin,

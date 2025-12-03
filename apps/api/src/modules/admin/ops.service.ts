@@ -32,7 +32,7 @@ export const OpsService = {
         data: { tripId, status: "ADMIN_FORCE_COMPLETED" }
       });
 
-      await tx.outbox.create({
+      await tx.outboxEvent.create({
         data: {
           aggregateType: "Trip",
           aggregateId: tripId,

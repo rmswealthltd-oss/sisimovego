@@ -1,6 +1,6 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { requireAdmin } from "../../middleware/requireAdmin";
-import asyncHandler from "../../middleware/asyncHandler";
+import { asyncHandler } from "../../middleware/asyncHandler";
 import prisma from "../../db";
 import { env } from "../../env";
 import { SettingsService } from "../../modules/system/settings.service";
@@ -13,7 +13,7 @@ const router = Router();
 router.get(
   "/",
   requireAdmin,
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const config = {
       NODE_ENV: env.NODE_ENV,
       PORT: env.PORT,
@@ -31,8 +31,8 @@ router.get(
 router.post(
   "/reload",
   requireAdmin,
-  asyncHandler(async (req, res) => {
-    await prisma.outbox.create({
+  asyncHandler(async (req: Request, res: Response) => {
+    await prisma.outboxEvent.create({
       data: {
         aggregateType: "System",
         aggregateId: "config_reload",
@@ -57,8 +57,9 @@ router.post(
 router.get(
   "/settings",
   requireAdmin,
-  asyncHandler(async (_req, res) => {
-    res.json(await prisma.setting.findMany());
+  asyncHandler(async (_req: Request, res: Response) => {
+    const settings = await prisma.systemSetting.findMany();
+    res.json(settings);
   })
 );
 
@@ -68,7 +69,7 @@ router.get(
 router.put(
   "/settings/:key",
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { key } = req.params;
     const { value } = req.body;
 

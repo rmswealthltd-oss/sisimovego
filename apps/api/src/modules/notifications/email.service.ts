@@ -6,9 +6,10 @@ const transporter = nodemailer.createTransport({
   host: env.EMAIL_SMTP_HOST,
   port: Number(env.EMAIL_SMTP_PORT),
   auth: {
-    user: env.EMAIL_USER,
-    pass: env.EMAIL_PASS
-  }
+    user: env.EMAIL_SMTP_USER, // fixed
+    pass: env.EMAIL_SMTP_PASS, // fixed
+  },
+  secure: env.EMAIL_SECURE, // optional: true for port 465
 });
 
 export const EmailService = {
@@ -17,7 +18,7 @@ export const EmailService = {
       from: env.EMAIL_FROM,
       to,
       subject,
-      html
+      html,
     });
   },
 
@@ -28,5 +29,5 @@ export const EmailService = {
 
   async sendTripUpdate(to: string, message: string) {
     await this.sendEmail(to, "Trip Update", `<p>${message}</p>`);
-  }
+  },
 };

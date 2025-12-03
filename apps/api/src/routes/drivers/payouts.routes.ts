@@ -1,24 +1,58 @@
-// src/routes/drivers/payouts.routes.ts
-import { Router } from "express";
-import { requireAuth } from "../../middleware/requireAuth";
+// src/routes/payouts.routes.ts
+import { Router, Request, Response } from "express";
 import { asyncHandler } from "../../middleware/asyncHandler";
-import { DriverPayoutService } from "../../modules/driver/driverPayout.service";
+import { requireAuth } from "../../middleware/requireAuth";
+import { requireAdmin } from "../../middleware/requireAdmin";
+import { DriverPayoutController } from "../../modules/driver/driverPayout.controller";
+import { AuthRequest } from "../../middleware/requireAuth";
 
 const router = Router();
 
 /**
- * POST /api/drivers/payouts
- * body { amountCents }
+ * DRIVER ROUTES
  */
-router.post(
-  "/",
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    const { amountCents } = req.body;
-    const driverId = (req as any).user.sub;
 
-    const payout = await DriverPayoutService.payoutToDriver(driverId, Number(amountCents));
-    res.json({ payout });
+// POST /drivers/payouts/request
+router.post(
+  "/request",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverPayoutController.requestPayout(authReq, res);
+  })
+);
+
+// GET /drivers/payouts/me
+router.get(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverPayoutController.myPayouts(authReq, res);
+  })
+);
+
+/**
+ * ADMIN ROUTES
+ */
+
+// GET /admin/payouts
+router.get(
+  "/",
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverPayoutController.listAll(authReq, res);
+  })
+);
+
+// GET /admin/payouts/:id
+router.get(
+  "/:id",
+  requireAdmin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthRequest;
+    return DriverPayoutController.getOne(authReq, res);
   })
 );
 

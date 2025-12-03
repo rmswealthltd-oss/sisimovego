@@ -1,307 +1,225 @@
-/**
- * SisiMove — Seed v3
- * Fully typed, deterministic, production-safe seed script
- */
-
+// prisma/seed.ts
 import {
   PrismaClient,
-  UserRole,
+  TripStatus,
+  RequestStatus,
   BookingStatus,
   PaymentProvider,
   PaymentStatus,
-  TripStatus,
-  LedgerType,
+  RefundStatus,
 } from "@prisma/client";
-
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-// -----------------------------------------------------
-// 👇 STRICTLY TYPED LOCATION TUPLE FIX
-// -----------------------------------------------------
-type TripLocation = [
-  origin: string,
-  destination: string,
-  originLat: number,
-  originLng: number,
-  destLat: number,
-  destLng: number
+const cities = [
+  "Nairobi",
+  "Mombasa",
+  "Nakuru",
+  "Kisumu",
+  "Eldoret",
+  "Thika",
+  "Machakos",
+  "Naivasha",
+  "Meru",
+  "Nyeri",
 ];
 
-const locations: TripLocation[] = [
-  ["Nairobi CBD", "Thika", -1.286, 36.817, -1.04, 37.07],
-  ["Westlands", "JKIA", -1.264, 36.80, -1.319, 36.92],
-  ["Kilimani", "Kitengela", -1.30, 36.79, -1.47, 36.96],
-  ["Rongai", "Kiserian", -1.39, 36.76, -1.43, 36.71],
-  ["Eastleigh", "CBD", -1.27, 36.85, -1.28, 36.82],
-  ["Pipeline", "South C", -1.31, 36.89, -1.32, 36.81],
-  ["Lavington", "Karen", -1.29, 36.77, -1.34, 36.72],
-  ["CBD", "Westlands", -1.28, 36.82, -1.26, 36.80],
-  ["Donholm", "Buruburu", -1.29, 36.89, -1.28, 36.89],
-  ["Embakasi", "Syokimau", -1.32, 36.89, -1.36, 36.94],
-];
-
-// -----------------------------------------------------
-// RANDOM HELPERS
-// -----------------------------------------------------
 function rand<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function randomInt(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min)) + min;
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-
-function randomPhone() {
-  return "07" + randomInt(10000000, 99999999).toString();
-}
-
-// -----------------------------------------------------
 
 async function main() {
-  console.log("🌱 SisiMove Seed v3 Starting...");
+  console.log("🌱 Seeding SisiMove database — please wait...");
 
-  //----------------------------------------------------
-  // ADMIN
-  //----------------------------------------------------
-  const adminHash = await bcrypt.hash("Admin123!", 10);
+  // --- 0️⃣ Ensure admin exists
+  const adminEmail = "admin@sisimove.com";
+  const adminUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (!adminUser) {
+    const hashedPassword = await bcrypt.hash("password123", 10);
+    await prisma.user.create({
+      data: {
+        firstName: "Admin",
+        lastName: "SisiMove",
+        email: adminEmail,
+        passwordHash: hashedPassword,
+        role: "ADMIN",
+      },
+    });
+    console.log("✔ Admin user created:", adminEmail, "/ password123");
+  }
 
-  await prisma.user.upsert({
-    where: { email: "admin@sisimove.com" },
-    update: {},
-    create: {
-      name: "System Admin",
-      email: "admin@sisimove.com",
-      phone: "0710000000",
-      passwordHash: adminHash,
-      role: UserRole.ADMIN,
-    },
-  });
+  // --- 1️⃣ Create drivers and passengers
+  const drivers: { id: string }[] = [];
+  const passengers: { id: string }[] = [];
 
-  console.log("✔ Admin created");
+  for (let i = 1; i <= 5; i++) {
+    const email = `driver${i}@example.com`;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      drivers.push({ id: existing.id });
+      continue;
+    }
 
-  //----------------------------------------------------
-  // DRIVERS + VEHICLES (10)
-  //----------------------------------------------------
-  const drivers = [];
+    const hashedPassword = await bcrypt.hash(`seed-driver-${i}`, 10);
+    const user = await prisma.user.create({
+      data: {
+        firstName: `Driver${i}`,
+        lastName: "Seed",
+        email,
+        phone: `+25470000010${i}`,
+        passwordHash: hashedPassword,
+        governmentIdStatus: "APPROVED",
+        driverLicenseStatus: "APPROVED",
+      },
+    });
+    drivers.push({ id: user.id });
+
+    await prisma.document.create({
+      data: {
+        id: `doc-driver-${user.id}`,
+        userId: user.id,
+        type: "DRIVER_LICENSE",
+        fileUrl: "https://example.com/docs/driver-license.pdf",
+        status: "APPROVED",
+      },
+    });
+
+    await prisma.driver.create({
+      data: {
+        userId: user.id,
+        rating: 4.8,
+      },
+    });
+  }
 
   for (let i = 1; i <= 10; i++) {
-    const phone = "07910000" + i;
+    const email = `passenger${i}@example.com`;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      passengers.push({ id: existing.id });
+      continue;
+    }
 
-    const user = await prisma.user.upsert({
-      where: { phone },
-      update: {},
-      create: {
-        name: `Driver ${i}`,
-        phone,
-        passwordHash: adminHash,
-        role: UserRole.DRIVER,
+    const hashedPassword = await bcrypt.hash(`seed-pass-${i}`, 10);
+    const user = await prisma.user.create({
+      data: {
+        firstName: `Passenger${i}`,
+        lastName: "Seed",
+        email,
+        phone: `+2547111100${i}`,
+        passwordHash: hashedPassword,
+        governmentIdStatus: "APPROVED",
+        driverLicenseStatus: "PENDING",
       },
     });
+    passengers.push({ id: user.id });
 
-    const driver = await prisma.driver.upsert({
-      where: { userId: user.id },
-      update: {},
-      create: {
+    await prisma.document.create({
+      data: {
+        id: `doc-passenger-${user.id}`,
         userId: user.id,
-        verified: true,
-        rating: 4.5,
+        type: "GOVERNMENT_ID",
+        fileUrl: "https://example.com/docs/gov-id.pdf",
+        status: "APPROVED",
       },
     });
-
-    await prisma.vehicle.upsert({
-      where: { driverId: driver.id },
-      update: {},
-      create: {
-        driverId: driver.id,
-        make: "Toyota",
-        model: "Fielder",
-        plate: `KDA ${100 + i}C`,
-        color: "White",
-      },
-    });
-
-    drivers.push(driver);
   }
 
-  console.log("✔ 10 Drivers & vehicles");
+  console.log(`✔ Created ${drivers.length} drivers and ${passengers.length} passengers`);
 
-  //----------------------------------------------------
-  // PASSENGERS (20)
-  //----------------------------------------------------
-  const passengerHash = await bcrypt.hash("Passenger123!", 10);
-  const passengers = [];
-
-  for (let i = 1; i <= 20; i++) {
-    const phone = "07920000" + i;
-
-    const user = await prisma.user.upsert({
-      where: { phone },
-      update: {},
-      create: {
-        name: `Passenger ${i}`,
-        phone,
-        passwordHash: passengerHash,
-        role: UserRole.PASSENGER,
-      },
-    });
-
-    passengers.push(user);
-  }
-
-  console.log("✔ 20 Passengers created");
-
-  //----------------------------------------------------
-  // TRIPS (10)
-  //----------------------------------------------------
-
+  // --- 2️⃣ Create trips
   const trips = [];
-
   for (let i = 0; i < 10; i++) {
-    const loc = locations[i];
-    const driver = drivers[i % drivers.length];
+    const driver = rand(drivers);
+    const from = rand(cities);
+    let to = rand(cities);
+    while (to === from) to = rand(cities);
+
+    const totalSeats = randInt(2, 4);
+    const availableSeats = randInt(1, totalSeats);
 
     const trip = await prisma.trip.create({
       data: {
-        driverId: driver.id,
-        origin: loc[0],
-        destination: loc[1],
-        originLat: loc[2],
-        originLng: loc[3],
-        destLat: loc[4],
-        destLng: loc[5],
-        priceCents: randomInt(10000, 30000),
-        availableSeats: randomInt(1, 4),
-        departureAt: new Date(Date.now() + randomInt(1, 5) * 3600 * 1000),
-        status: TripStatus.DRIVER_ASSIGNED,
+        ownerId: driver.id,
+        fromLocation: from,
+        toLocation: to,
+        date: new Date(Date.now() + randInt(1, 14) * 24 * 60 * 60 * 1000),
+        pricePerSeat: randInt(300, 1500),
+        totalSeats,
+        availableSeats,
+        status: TripStatus.ACTIVE,
+        notes: `Seed trip ${i + 1} from ${from} to ${to}`,
       },
     });
 
     trips.push(trip);
   }
 
-  console.log("✔ 10 Trips created");
+  console.log("✔ Created 10 trips");
 
-  //----------------------------------------------------
-  // BOOKINGS (30) + PAYMENTS (30)
-  //----------------------------------------------------
-  const bookings = [];
+  // --- 3️⃣ Create tripRequests, bookings, payments, and occasional refunds
+  for (const trip of trips) {
+    const requestsCount = randInt(1, 3);
+    for (let r = 0; r < requestsCount; r++) {
+      const passenger = rand(passengers);
 
-  for (let i = 0; i < 30; i++) {
-    const trip = rand(trips);
-    const passenger = rand(passengers);
+      const tripRequest = await prisma.tripRequest.create({
+        data: {
+          tripId: trip.id,
+          userId: passenger.id,
+          seats: 1,
+          status: rand([
+            RequestStatus.PENDING,
+            RequestStatus.ACCEPTED,
+            RequestStatus.DECLINED,
+            RequestStatus.CANCELLED,
+          ]),
+        },
+      });
 
-    const seats = randomInt(1, 3);
-    const total = trip.priceCents * seats;
+      const makeBooking = Math.random() < 0.6;
 
-    const booking = await prisma.booking.create({
-      data: {
-        userId: passenger.id,
-        tripId: trip.id,
-        seats,
-        totalCents: total,
-        status: BookingStatus.PAID,
-      },
-    });
+      if (makeBooking) {
+        const booking = await prisma.booking.create({
+          data: {
+            tripId: trip.id,
+            passengerId: passenger.id,
+            seats: 1,
+            amountCents: trip.pricePerSeat * 100,
+            amountPaid: trip.pricePerSeat * 100,
+            status: BookingStatus.PAID,
+            provider: PaymentProvider.MPESA,
+            providerTxId: `seed-tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          },
+        });
 
-    await prisma.payment.create({
-      data: {
-        bookingId: booking.id,
-        userId: passenger.id,
-        provider: rand([PaymentProvider.MPESA, PaymentProvider.STRIPE]),
-        reference: `TX-${Date.now()}-${i}`,
-        phone: passenger.phone,
-        amountCents: total,
-        status: PaymentStatus.SUCCESS,
-      },
-    });
-
-    bookings.push(booking);
+        await prisma.payment.create({
+          data: {
+            amount: booking.amountPaid,
+            method: PaymentProvider.MPESA,
+            status: PaymentStatus.SUCCESS,
+            bookingId: booking.id,
+            userId: passenger.id,
+          },
+        });
+      }
+    }
   }
 
-  console.log("✔ 30 bookings + payments");
-
-  //----------------------------------------------------
-  // LEDGER ENTRIES (payout + earnings)
-  //----------------------------------------------------
-
-  const payoutDrivers = drivers.slice(0, 5);
-  const payouts = [];
-
-  for (const driver of payoutDrivers) {
-    const amount = randomInt(50000, 150000);
-
-    const payout = await prisma.payout.create({
-      data: {
-        driverId: driver.id,
-        amount,
-        status: "APPROVED",
-        approvedAt: new Date(),
-      },
-    });
-
-    await prisma.ledgerEntry.create({
-      data: {
-        driverId: driver.id,
-        payoutId: payout.id,
-        amount,
-        type: LedgerType.PAYOUT,
-        reference: `B2C-${payout.id}`,
-      },
-    });
-
-    payouts.push(payout);
-  }
-
-  console.log("✔ Payouts + ledger entries created");
-
-  //----------------------------------------------------
-  // SETTINGS
-  //----------------------------------------------------
-
-  await prisma.systemSetting.upsert({
-    where: { key: "platform_fee_pct" },
-    update: { value: "0.10" },
-    create: { key: "platform_fee_pct", value: "0.10" },
-  });
-
-  await prisma.systemSetting.upsert({
-    where: { key: "mpesa_b2c_minimum" },
-    update: { value: "100" },
-    create: { key: "mpesa_b2c_minimum", value: "100" },
-  });
-
-  //----------------------------------------------------
-  // PROMOS
-  //----------------------------------------------------
-  await prisma.promoCode.upsert({
-    where: { code: "WELCOME10" },
-    update: {},
-    create: {
-      code: "WELCOME10",
-      discountPct: 10,
-      active: true,
-    },
-  });
-
-  await prisma.promoCode.upsert({
-    where: { code: "SISI20" },
-    update: {},
-    create: {
-      code: "SISI20",
-      discountPct: 20,
-      active: true,
-    },
-  });
-
-  console.log("🔥 SEED v3 COMPLETE!");
+  console.log("✔ Created tripRequests, bookings, and payments");
+  console.log("🌱 Seeding finished successfully.");
 }
 
-// Run
 main()
   .catch((e) => {
-    console.error("❌ Seed failed", e);
+    console.error("Seed error:", e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

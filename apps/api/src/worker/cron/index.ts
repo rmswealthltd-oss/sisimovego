@@ -4,21 +4,44 @@ import { nightlyFraudEmail } from "./nightlyFraudEmail";
 import { settlementDaily } from "./settlementDaily";
 
 /**
- * startCronTasks: run light scheduled tasks in process.
- * For production prefer a scheduler (Kubernetes CronJob) or a dedicated cron worker.
+ * startCronTasks:
+ * Lightweight in-process cron suitable for development.
+ *
+ * NOTE:
+ * In production, use a real job scheduler:
+ * - Kubernetes CronJob
+ * - systemd timers
+ * - external worker
  */
 export function startCronTasks() {
-  // simple in-process schedule
-  setInterval(() => {
-    // hourly tasks
-    autoCompleteTrips().catch((e) => console.error("cron:autoCompleteTrips", e));
-  }, 1000 * 60 * 60); // every hour
+  console.log("[CRON] Starting in-process cron tasks...");
 
-  setInterval(() => {
-    nightlyFraudEmail().catch((e) => console.error("cron:nightlyFraudEmail", e));
-  }, 1000 * 60 * 60 * 24); // daily
+  // 1️⃣ Auto-complete stale trips — every hour
+  setInterval(async () => {
+    try {
+      await autoCompleteTrips();
+    } catch (err) {
+      console.error("[CRON autoCompleteTrips]", err);
+    }
+  }, 60 * 60 * 1000);
 
-  setInterval(() => {
-    settlementDaily().catch((e) => console.error("cron:settlementDaily", e));
-  }, 1000 * 60 * 60 * 24); // daily
+  // 2️⃣ Nightly fraud summary — every 24 hours
+  setInterval(async () => {
+    try {
+      await nightlyFraudEmail();
+    } catch (err) {
+      console.error("[CRON nightlyFraudEmail]", err);
+    }
+  }, 24 * 60 * 60 * 1000);
+
+  // 3️⃣ Daily settlement — every 24 hours
+  setInterval(async () => {
+    try {
+      await settlementDaily();
+    } catch (err) {
+      console.error("[CRON settlementDaily]", err);
+    }
+  }, 24 * 60 * 60 * 1000);
+
+  console.log("[CRON] All tasks scheduled.");
 }

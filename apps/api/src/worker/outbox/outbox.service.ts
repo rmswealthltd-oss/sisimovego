@@ -1,11 +1,12 @@
 // src/lib/outbox/outbox.service.ts
+
 import prisma from "../../db";
 import { logger } from "../../lib/logger";
-import {processOutboxEvent} from "../worker/processors";
+import { processOutboxEvent } from "../../worker/processors";
 
 export class OutboxService {
   /**
-   * Write a new outbox event
+   * Emit a new outbox event
    */
   static async emit(params: {
     type: string;
@@ -19,22 +20,23 @@ export class OutboxService {
     const outbox = await prisma.outboxEvent.create({
       data: {
         type,
-        aggregateType,
-        aggregateId,
-        payload,
+        aggregateType: aggregateType ?? null,
+        aggregateId: aggregateId ?? null,
+        payload: JSON.stringify(payload ?? {}),
         channel: channel ?? "worker",
+        status: "READY",
       },
     });
 
     logger.info(
-      `[OUTBOX] Event created: ${outbox.id} type=${type} aggregate=${aggregateType}`
+      `[OUTBOX] Event created: ${outbox.id} type=${type} agg=${aggregateType}`
     );
 
     return outbox;
   }
 
   /**
-   * Mark as processed
+   * Mark outbox event as processed
    */
   static async markProcessed(id: string) {
     await prisma.outboxEvent.update({
@@ -47,7 +49,7 @@ export class OutboxService {
   }
 
   /**
-   * Mark as failed
+   * Mark outbox event as failed
    */
   static async fail(id: string, errorMsg: string) {
     await prisma.outboxEvent.update({
@@ -62,7 +64,7 @@ export class OutboxService {
 }
 
 /**
- * Runs a single batch of outbox events
+ * Runs one batch of outbox events
  */
 export async function runOutboxOnce(batchSize = 10) {
   const events = await prisma.outboxEvent.findMany({
@@ -71,17 +73,24 @@ export async function runOutboxOnce(batchSize = 10) {
     orderBy: { createdAt: "asc" },
   });
 
-  for (const event of events) {
+  if (events.length === 0) {
+    return 0;
+  }
+
+  for (const evt of events) {
     try {
-      await processOutboxEvent(event);
+      await processOutboxEvent(evt);
 
       await prisma.outboxEvent.update({
-        where: { id: event.id },
-        data: { status: "PROCESSED", processed: true },
+        where: { id: evt.id },
+        data: {
+          processed: true,
+          status: "PROCESSED",
+        },
       });
     } catch (err: any) {
       await prisma.outboxEvent.update({
-        where: { id: event.id },
+        where: { id: evt.id },
         data: {
           status: "FAILED",
           attempts: { increment: 1 },
@@ -90,4 +99,6 @@ export async function runOutboxOnce(batchSize = 10) {
       });
     }
   }
+
+  return events.length;
 }

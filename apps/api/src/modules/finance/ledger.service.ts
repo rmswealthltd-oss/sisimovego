@@ -1,95 +1,81 @@
-// src/modules/finance/ledger.service.ts
 import prisma from "../../db";
+import { LedgerType } from "@prisma/client";
+
+interface QueryLedgerParams {
+  page?: number;
+  pageSize?: number;
+  walletId?: string;
+  entityType?: string;
+  entityId?: string; // for bookingId or other entities
+  type?: LedgerType;
+  from?: string;
+  to?: string;
+}
+
+interface CreateManualEntryParams {
+  walletId?: string;
+  bookingId?: string;
+  amount: number;
+  type: LedgerType;
+  description?: string;
+}
 
 export const LedgerService = {
   /**
-   * Query ledger entries with filters and pagination.
+   * Query ledger entries with filters and pagination
    */
-  async queryLedger({ page = 1, pageSize = 50, walletId, bookingId, type, from, to }: {
-    page?: number;
-    pageSize?: number;
-    walletId?: string;
-    bookingId?: string;
-    type?: string;
-    from?: string;
-    to?: string;
-  }) {
+  async query(params: QueryLedgerParams) {
+    const { page = 1, pageSize = 50, walletId, entityType, entityId, type, from, to } = params;
+
     const where: any = {};
     if (walletId) where.walletId = walletId;
-    if (bookingId) where.bookingId = bookingId;
+    if (entityType) where.entityType = entityType;
+    if (entityId) where.entityId = entityId;
     if (type) where.type = type;
-    if (from || to) {
-      where.createdAt = {};
-      if (from) where.createdAt.gte = new Date(from);
-      if (to) where.createdAt.lte = new Date(to);
-    }
+    if (from || to) where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to);
 
-    const [total, rows] = await Promise.all([
-      prisma.ledger.count({ where }),
-      prisma.ledger.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize
-      })
-    ]);
+    const entries = await prisma.ledgerEntry.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
 
-    return { total, page, pageSize, rows };
+    const total = await prisma.ledgerEntry.count({ where });
+
+    return { total, page, pageSize, entries };
   },
 
   /**
-   * Manual ledger entry creation (admin).
+   * Create a manual ledger entry (admin use)
    */
-  async createManualEntry({ walletId, bookingId, amount, type, description }: {
-    walletId?: string;
-    bookingId?: string;
-    amount: number;
-    type: string;
-    description?: string;
-  }) {
-    return prisma.$transaction(async (tx) => {
-      // If walletId provided update wallet balance
-      if (walletId) {
-        await tx.wallet.update({
-          where: { id: walletId },
-          data: { balance: { increment: amount } }
-        });
-      }
+  async createManualEntry(params: CreateManualEntryParams) {
+    const { walletId, bookingId, amount, type, description } = params;
 
-      const entry = await tx.ledger.create({
-        data: {
-          walletId: walletId ?? null,
-          bookingId: bookingId ?? null,
-          amount,
-          type,
-          description
-        }
-      });
-
-      // publish outbox for accounting downstream systems
-      await tx.outbox.create({
-        data: {
-          aggregateType: "Ledger",
-          aggregateId: entry.id,
-          type: "LedgerEntryCreated",
-          payload: JSON.stringify({ ledgerId: entry.id }),
-          channel: "pubsub",
-          status: "READY"
-        }
-      });
-
-      return entry;
+    const ledger = await prisma.ledger.create({
+      data: {
+        type,
+        description,
+        walletId,
+        entityType: bookingId ? "BOOKING" : undefined,
+        entityId: bookingId ?? undefined,
+        amount,
+      },
     });
+
+    const entry = await prisma.ledgerEntry.create({
+      data: {
+        ledgerId: ledger.id,
+        walletId,
+        bookingId,
+        amount,
+        direction: amount >= 0 ? "CREDIT" : "DEBIT",
+        note: description,
+      },
+    });
+
+    return entry;
   },
-
-  /**
-   * Sum ledger balance for a wallet (materialized helper).
-   */
-  async sumWalletBalance(walletId: string) {
-    const rows = await prisma.ledger.aggregate({
-      _sum: { amount: true },
-      where: { walletId }
-    });
-    return rows._sum.amount ?? 0;
-  }
 };

@@ -1,55 +1,62 @@
-// apps/web/src/app/auth/register/_RegisterForm.tsx
 "use client";
-import React from "react";
 
-import { useState,} from "react";
-import { Api } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function RegisterForm() {
-  const [name,setName] = useState("");
-  const [email,setEmail] = useState("");
-  const [phone,setPhone] = useState("");
-  const [password,setPassword] = useState("");
-  const [loading,setLoading] = useState(false);
-  const router = useRouter();
+  const { register } = useAuth();
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
+
+    if (password !== confirm) {
+      alert("Passwords do not match");
+      return;
+    }
+
     setLoading(true);
-    try {
-      await Api.post("/auth/register", { name, email, phone, password });
-      router.push("/auth/login");
-    } catch (err:any) {
-      alert(err?.message || "Registration failed");
-    } finally { setLoading(false); }
+    const ok = await register({ firstName, lastName, email, password });
+
+    if (!ok) alert("Registration failed");
+
+    setLoading(false);
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 bg-white p-4 rounded shadow">
-      <div>
-        <label className="text-sm block mb-1">Full name</label>
-        <input value={name} onChange={(e)=>setName(e.target.value)} className="w-full border rounded px-3 py-2" required />
+    <form onSubmit={submit} className="space-y-5 bg-white p-6 rounded-xl shadow-md border">
+      <h2 className="text-xl font-semibold text-gray-700 mb-2">Create your account</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input placeholder="First name" value={firstName} onChange={e => setFirstName(e.target.value)} required className="border p-2 rounded-lg"/>
+        <input placeholder="Middle name (optional)" value={middleName} onChange={e => setMiddleName(e.target.value)} className="border p-2 rounded-lg"/>
+        <div className="col-span-2">
+          <input placeholder="Last name" value={lastName} onChange={e => setLastName(e.target.value)} required className="border p-2 rounded-lg w-full"/>
+        </div>
       </div>
 
-      <div>
-        <label className="text-sm block mb-1">Phone</label>
-        <input value={phone} onChange={(e)=>setPhone(e.target.value)} className="w-full border rounded px-3 py-2" required />
+      <input placeholder="Phone" value={phone} onChange={e => setPhone(e.target.value)} required className="border p-2 rounded-lg w-full"/>
+      <input type="email" placeholder="Email (optional)" value={email} onChange={e => setEmail(e.target.value)} className="border p-2 rounded-lg w-full"/>
+
+      <div className="relative">
+        <input type={show ? "text" : "password"} placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="border p-2 rounded-lg w-full pr-10"/>
+        <button type="button" onClick={() => setShow(!show)} className="absolute right-2 top-2 text-gray-500">
+          {show ? <FiEyeOff/> : <FiEye/>}
+        </button>
       </div>
 
-      <div>
-        <label className="text-sm block mb-1">Email</label>
-        <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} className="w-full border rounded px-3 py-2" required />
-      </div>
+      <input type={show ? "text" : "password"} placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} required className="border p-2 rounded-lg w-full"/>
 
-      <div>
-        <label className="text-sm block mb-1">Password</label>
-        <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2" required />
-      </div>
-
-      <div>
-        <button disabled={loading} className="px-4 py-2 bg-primary text-white rounded">{loading ? "Creating..." : "Create account"}</button>
-      </div>
+      <button disabled={loading} className="w-full bg-primary text-white py-2 rounded-lg">{loading ? "Creating..." : "Sign Up"}</button>
     </form>
   );
 }
